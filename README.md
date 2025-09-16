@@ -14,12 +14,12 @@ The goal is to share practical, production-tested content that others can quickl
 ## Repository Structure
 
 
-- **KQL/** – Saved queries organized by type or use case.  
-- **AnalyticsRules/** – JSON templates for analytics rule deployment.  
-- **Workbooks/** – ARM templates or JSON definitions for custom workbooks.  
-- **LogicApps/** – Sanitized templates for Sentinel playbooks and automations.  
+- **kql_queries/** – Saved queries organized by type or use case.  
+- **analytics_rules/** – JSON templates for analytics rule deployment.  
+- **workbooks/** – ARM templates or JSON definitions for custom workbooks.  
+- **logic_apps/** – Sanitized templates for Sentinel playbooks and automations.  
+- **parsers/** – KQL Functions used to parse logs into a more friendly and usable format.
 
-Each folder includes its own README with more detail.
 
 ---
 
