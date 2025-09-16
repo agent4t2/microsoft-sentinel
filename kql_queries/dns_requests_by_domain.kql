@@ -1,0 +1,9 @@
+ASimDnsActivityLogs  
+| where TimeGenerated > ago(60m)  
+| where EventProduct == "DNS Server"  
+| where EventVendor == "Microsoft"  
+| extend QName = split(DnsQuery,".")[-2]  
+| extend QTLD = split(DnsQuery,".")[-1]  
+| extend QDomain = strcat(QName,".",QTLD)  
+| summarize count() by QDomain  
+| sort by count_ desc

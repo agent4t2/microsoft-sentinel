@@ -1,0 +1,48 @@
+// Weekly Attendance based on Brivo Badge Events
+// This query should always use a SUNDAY date for the startTime parameter
+let startTime = datetime(2025-05-04T00:00:00Z);
+let endTime = startTime + 7d;
+let DaysOfWeek = datatable(WeekdayNum:int, Weekday:string)[0, "Sunday", 1, "Monday", 2, "Tuesday", 3, "Wednesday", 4, "Thursday", 5, "Friday", 6, "Saturday"];
+let baseData = BrivoEvents_CL
+| where TimeGenerated between (startTime .. endTime)
+| extend UserId = tostring(user_id_s), WeekdayNum = toint(format_timespan(dayofweek(TimeGenerated), "d"))
+| summarize Present = count(), DisplayName = any(actor_name_s) by UserId, WeekdayNum
+| extend Present = 1;
+let peopleList = BrivoEvents_CL
+| where TimeGenerated between (startTime .. endTime)
+| summarize DisplayName = any(actor_name_s) by UserId = tostring(user_id_s)
+| extend join_key = 1;
+let allDays = DaysOfWeek | extend join_key = 1;
+let fullMatrix = peopleList
+| join kind=inner (allDays) on join_key
+| project UserId, DisplayName, WeekdayNum, Weekday;
+let padded = fullMatrix
+| join kind=leftouter (baseData) on UserId, WeekdayNum
+| extend Present = coalesce(Present, 0);
+let withTallies = padded
+| summarize
+    Sunday = maxif(Present, Weekday == "Sunday"),
+    Monday = maxif(Present, Weekday == "Monday"),
+    Tuesday = maxif(Present, Weekday == "Tuesday"),
+    Wednesday = maxif(Present, Weekday == "Wednesday"),
+    Thursday = maxif(Present, Weekday == "Thursday"),
+    Friday = maxif(Present, Weekday == "Friday"),
+    Saturday = maxif(Present, Weekday == "Saturday")
+  by UserId, DisplayName
+| extend WeeklyTally = Sunday + Monday + Tuesday + Wednesday + Thursday + Friday + Saturday
+| extend WeekStartDate = format_datetime(startTime, "yyyy-MM-dd");
+let idMap = BrivoEvents_CL
+| where TimeGenerated between (startTime .. endTime)
+| extend UserId = tostring(user_id_s)
+| summarize arg_max(TimeGenerated, empid_s, medeeid_s) by UserId
+| extend EmployeeNumber = iif(isnull(empid_s) and isnull(medeeid_s), "missing", substring(strcat("000000", tostring(coalesce(empid_s, medeeid_s))), -6, 6));
+let identityLookup = IdentityInfo
+| where TimeGenerated > ago(90d)
+| extend EmployeeNumber = substring(strcat("000000", tostring(EmployeeId)), -6, 6)
+| summarize arg_max(TimeGenerated, AccountUPN, AccountDisplayName) by EmployeeNumber;
+withTallies
+| join kind=leftouter (idMap) on UserId
+| join kind=leftouter (identityLookup) on EmployeeNumber
+| project Name = DisplayName, EmployeeNumber, Email = AccountUPN, WeekStartDate, WeeklyTally,
+          Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday
+| order by Name asc

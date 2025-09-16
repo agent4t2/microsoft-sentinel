@@ -1,0 +1,10 @@
+ASimDnsActivityLogs   
+| where EventProduct == "DNS Server"  
+| where EventVendor == "Microsoft"
+| where SrcIpAddr startswith "10."  
+| extend QName = split(DnsQuery,".")[-2]  
+| extend QTLD = split(DnsQuery,".")[-1]  
+| extend QDomain = strcat(QName,".",QTLD)  
+| where QDomain contains "cylance.com"
+| summarize count() by SourceIP = SrcIpAddr, QueriedDomain = QDomain, DNSServer = DvcHostname
+| order by count_ desc 

@@ -1,0 +1,6 @@
+GCPAuditLogs // Table with SmartGift Events/Logs
+| where TimeGenerated > ago(90d) // 90 Days Immediate Searchable History
+| where GCPResourceName contains "smartgift" // SmartGift
+| where ProjectId contains "production" // Production
+| summarize EventCount = count() by bin(TimeGenerated, 1d) // Count of Events per Day
+| sort by TimeGenerated asc // Sort Earliest First

@@ -1,0 +1,8 @@
+SigninLogs
+| extend AuthenticationMethod = tostring(parse_json(AuthenticationDetails)[0].authenticationMethod)
+| extend AuthenticationMethodDetail = tostring(parse_json(AuthenticationDetails)[0].authenticationMethodDetail)
+| extend MfaMethod = tostring(parse_json(AuthenticationDetails)[1].authenticationMethod)
+| where parse_json(AuthenticationDetails)[0].succeeded == true and parse_json(AuthenticationDetails)[1].succeeded == true
+| where AuthenticationMethod != "Previously satisfied"
+| distinct UserPrincipalName,AuthenticationMethod,AuthenticationMethodDetail,MfaMethod
+| sort by UserPrincipalName asc 

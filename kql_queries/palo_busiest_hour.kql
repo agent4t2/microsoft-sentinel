@@ -1,0 +1,14 @@
+// Highest Bandwidth Ingress and Egress by Hour of Day
+CommonSecurityLog
+| where DeviceVendor == "Palo Alto Networks"
+| extend Hour = datetime_part("hour", TimeGenerated)
+| summarize 
+    EgressBytes = sum(tolong(SentBytes)),
+    IngressBytes = sum(tolong(ReceivedBytes))
+    by Hour
+| extend 
+    EgressGB = round(EgressBytes / (1024.0 * 1024 * 1024), 2),
+    IngressGB = round(IngressBytes / (1024.0 * 1024 * 1024), 2)
+| project Hour, EgressGB, IngressGB
+| order by Hour asc
+| render timechart

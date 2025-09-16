@@ -1,0 +1,6 @@
+// Palo Alto Firewalls - CLI Login Events
+CommonSecurityLog
+| where Computer startswith "FW-"
+| where Activity in ("SYSTEM")
+| where Message has_all ("User", "logged in via CLI from")
+| order by TimeGenerated desc 

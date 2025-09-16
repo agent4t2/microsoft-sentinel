@@ -1,0 +1,13 @@
+CloudAppEvents
+| where IsAnonymousProxy == false
+and isnotempty(AccountObjectId)
+| join kind=inner (
+    CloudAppEvents
+    | where IsAnonymousProxy == true
+    and isnotempty(AccountObjectId)
+    | summarize AP_count = count() by AP_AOI = AccountObjectId, AP_ISP = ISP, AP_OS = OSPlatform, AP_DT = DeviceType
+    | project  AP_count, AP_AOI, AP_ISP, AP_OS, AP_DT
+) on $left.AccountObjectId == $right.AP_AOI
+| summarize NAP_count = count() by AccountObjectId, AccountDisplayName, AP_count, AP_DT, AP_ISP, AP_OS
+| project AccountDisplayName, Non_AnonymousProxy_Count = NAP_count, AnonymousProxy_Count = AP_count, ProxyISP = AP_ISP, ProxyOS = AP_OS, ProxyDeviceType = AP_DT
+| order by AccountDisplayName asc, AnonymousProxy_Count desc

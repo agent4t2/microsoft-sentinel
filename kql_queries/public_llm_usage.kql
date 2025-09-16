@@ -1,0 +1,16 @@
+// Identifies users and devices accessing public LLMs, including the AI provider and AI service name.
+// This query relies on the URLs listed in the 'Public AI Services' watchlist.
+// Any newly discovered LLM URLs should be added to that watchlist for full visibility.
+// Last Updated 2025-02-06, RF
+//
+let ai_services = _GetWatchlist("pubaiservices")
+    | where AI_provider != "Microsoft"
+    | project AI_url, AI_name, AI_provider;
+DeviceNetworkEvents
+| join kind=inner (ai_services) on $left.RemoteUrl == $right.AI_url
+| summarize MostRecentVisit=max(TimeGenerated), 
+            arg_max(TimeGenerated, RemoteUrl, DeviceName, InitiatingProcessAccountUpn, AI_provider, AI_name), 
+            VisitCount=count() 
+  by InitiatingProcessAccountName
+| project LastAccessed = MostRecentVisit, UserID = InitiatingProcessAccountName, Account = InitiatingProcessAccountUpn, URL = RemoteUrl, Provider = AI_provider, AI = AI_name, DeviceName, VisitCount
+| order by UserID asc

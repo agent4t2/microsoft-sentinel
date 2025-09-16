@@ -1,0 +1,12 @@
+// 18F Fastly Logs - Response Codes over Time
+// Last Updated 11.06.2024 - R.F.
+Fastly_CL
+| extend status_group = case(
+    toint(response_status_d) >= 200 and toint(response_status_d) < 300, "2xx Response",
+    toint(response_status_d) >= 300 and toint(response_status_d) < 400, "3xx Response",
+    toint(response_status_d) >= 400 and toint(response_status_d) < 500, "4xx Response",
+    "other"
+)
+| summarize count() by bin(timestamp_t, 5m), status_group
+| order by timestamp_t asc
+| render timechart

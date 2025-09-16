@@ -1,0 +1,78 @@
+// Monthly Attendance based on Brivo Badge Events
+// Dynamically evaluates the full current calendar month
+let today = startofday(now());
+let startTime = startofmonth(today);        // 1st of current month
+let endTime = startofmonth(startTime + 32d); // safely lands in next month, then gets its 1st
+let numDays = datetime_diff("day", endTime, startTime);
+let ignorenames = dynamic(["contractor","first step","vending","cleaners","temporary","crown","employee"]);
+let ignoreids = dynamic(["CONSULTANT","TEMP","ULTANT","UNTEER","RACTOR","CURITY","farms","00TEMP"]);
+let ignoreemails = dynamic(["iqo-","spi-","krbtgt"]);
+// Create calendar day map: 1 to 31, capped
+let CalendarDays = range Day from 1 to 31 step 1
+| extend Date = startTime + (Day - 1) * 1d;
+// Base badge data for presence by day
+let baseData = BrivoEvents_CL
+| where TimeGenerated between (startTime .. endTime)
+| extend UserId = tostring(user_id_s), Day = datetime_diff("day", TimeGenerated, startTime) + 1
+| where Day between (1 .. 31)
+| summarize Present = count(), DisplayName = any(actor_name_s) by UserId, Day
+| extend Present = 1;
+// List of unique people seen that month
+let peopleList = BrivoEvents_CL
+| where TimeGenerated between (startTime .. endTime)
+| summarize DisplayName = any(actor_name_s) by UserId = tostring(user_id_s)
+| extend join_key = 1;
+// Expand every user to every calendar day
+let allDays = CalendarDays | extend join_key = 1;
+let fullMatrix = peopleList
+| join kind=inner (allDays) on join_key
+| project UserId, DisplayName, Day;
+// Pad with presence data
+let padded = fullMatrix
+| join kind=leftouter (baseData) on UserId, Day
+| extend Present = coalesce(Present, 0);
+// Final tally: one column per day (1–31), with MonthlyTally
+let withTallies = padded
+| summarize
+    Day1 = maxif(Present, Day == 1),  Day2 = maxif(Present, Day == 2),  Day3 = maxif(Present, Day == 3),
+    Day4 = maxif(Present, Day == 4),  Day5 = maxif(Present, Day == 5),  Day6 = maxif(Present, Day == 6),
+    Day7 = maxif(Present, Day == 7),  Day8 = maxif(Present, Day == 8),  Day9 = maxif(Present, Day == 9),
+    Day10 = maxif(Present, Day == 10), Day11 = maxif(Present, Day == 11), Day12 = maxif(Present, Day == 12),
+    Day13 = maxif(Present, Day == 13), Day14 = maxif(Present, Day == 14), Day15 = maxif(Present, Day == 15),
+    Day16 = maxif(Present, Day == 16), Day17 = maxif(Present, Day == 17), Day18 = maxif(Present, Day == 18),
+    Day19 = maxif(Present, Day == 19), Day20 = maxif(Present, Day == 20), Day21 = maxif(Present, Day == 21),
+    Day22 = maxif(Present, Day == 22), Day23 = maxif(Present, Day == 23), Day24 = maxif(Present, Day == 24),
+    Day25 = maxif(Present, Day == 25), Day26 = maxif(Present, Day == 26), Day27 = maxif(Present, Day == 27),
+    Day28 = maxif(Present, Day == 28), Day29 = maxif(Present, Day == 29), Day30 = maxif(Present, Day == 30),
+    Day31 = maxif(Present, Day == 31)
+  by UserId, DisplayName
+| extend MonthlyTally =
+    Day1 + Day2 + Day3 + Day4 + Day5 + Day6 + Day7 + Day8 + Day9 + Day10 +
+    Day11 + Day12 + Day13 + Day14 + Day15 + Day16 + Day17 + Day18 + Day19 + Day20 +
+    Day21 + Day22 + Day23 + Day24 + Day25 + Day26 + Day27 + Day28 + Day29 + Day30 + Day31
+| extend MonthStartDate = format_datetime(startTime, "yyyy-MM-dd");
+// Employee ID mapping (same logic)
+let idMap = BrivoEvents_CL
+| where TimeGenerated between (startTime .. endTime)
+| extend UserId = tostring(user_id_s)
+| summarize arg_max(TimeGenerated, empid_s, medeeid_s) by UserId
+| extend EmployeeNumber = iif(isnull(empid_s) and isnull(medeeid_s), "missing", substring(strcat("000000", tostring(coalesce(empid_s, medeeid_s))), -6, 6));
+// Identity info join
+let identityLookup = IdentityInfo
+| where TimeGenerated > ago(90d)
+| extend EmployeeNumber = substring(strcat("000000", tostring(EmployeeId)), -6, 6)
+| summarize arg_max(TimeGenerated, AccountUPN, AccountDisplayName) by EmployeeNumber;
+// Final result
+withTallies
+| join kind=leftouter (idMap) on UserId
+| join kind=leftouter (identityLookup) on EmployeeNumber
+| project Name = tolower(DisplayName), EmployeeNumber, Email = AccountUPN, MonthStartDate, MonthlyTally,
+          Day1, Day2, Day3, Day4, Day5, Day6, Day7, Day8, Day9, Day10,
+          Day11, Day12, Day13, Day14, Day15, Day16, Day17, Day18, Day19, Day20,
+          Day21, Day22, Day23, Day24, Day25, Day26, Day27, Day28, Day29, Day30, Day31
+//Filter Non-Employees from Results
+| where not(EmployeeNumber has_any (ignoreids))
+| where not(Name has_any (ignorenames))
+| where not(Email has_any (ignoreemails))
+| order by Name asc
+

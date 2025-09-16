@@ -1,0 +1,8 @@
+// Identifies Users currently At Risk with a High Blast Radius
+IdentityInfo
+| where TimeGenerated > ago(30d)
+| summarize arg_max(TimeGenerated, *) by AccountUPN
+| where IsAccountEnabled == "true"
+| where BlastRadius == "High"
+| where RiskState == "AtRisk"
+| project AccountDisplayName, AccountUPN, TimeGenerated, AccountName, RiskState, BlastRadius, GroupMembership, Department, JobTitle

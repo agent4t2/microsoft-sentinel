@@ -1,0 +1,6 @@
+// Top Talkers by IP Address and Port
+CommonSecurityLog
+| where DeviceVendor == "Palo Alto Networks"
+| summarize TotalSentBytes = sum(tolong(SentBytes)) by SourceIP, Protocol, DestinationPort, ApplicationProtocol
+| extend TotalSentGB = round(TotalSentBytes / (1024.0 * 1024 * 1024), 2)
+| top 20 by TotalSentGB desc

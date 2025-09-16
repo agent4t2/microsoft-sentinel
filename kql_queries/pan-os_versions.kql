@@ -1,0 +1,5 @@
+CommonSecurityLog
+| where TimeGenerated > ago(60m)
+| where DeviceVendor == "Palo Alto Networks" and DeviceProduct == "PAN-OS" and DeviceVersion contains "."
+| distinct  Computer, DeviceVendor, DeviceProduct, DeviceVersion
+| order by Computer asc

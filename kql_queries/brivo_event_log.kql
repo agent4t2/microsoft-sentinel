@@ -1,0 +1,22 @@
+let lookback = 30m;
+let identity_lookback = 30d;
+BrivoEvents_CL
+| where TimeGenerated > ago(lookback)
+| extend RawEmployeeNumber = coalesce(empid_s, medeeid_s, "missing")
+| extend EmployeeNumber = iif(RawEmployeeNumber == "missing", "missing", substring(strcat("000000", tostring(RawEmployeeNumber)), -6, 6))
+| join kind=leftouter (
+    IdentityInfo
+    | where TimeGenerated > ago(identity_lookback)
+    | extend EmployeeNumber = substring(strcat("000000", tostring(EmployeeId)), -6, 6)
+    | summarize arg_max(TimeGenerated, *) by EmployeeNumber
+    | project EmployeeNumber, AccountUPN, AccountDisplayName
+) on EmployeeNumber
+| project Timestamp = timestamp_t, 
+          EmployeeNumber, 
+          EmployeeName = actor_name_s, 
+          Site = site_name_s, 
+          Door = door_name_s, 
+          Result = result_s,
+          Email = AccountUPN,
+          AccountName = AccountDisplayName
+| order by Timestamp desc

@@ -1,0 +1,10 @@
+// Identifies LastPass Users and the date they onboarded to Bitwarden.
+// Total user list is 92 users as of 2/10/2025
+let lpuser = _GetWatchlist('lpmigrate')
+    | project LPEmailAddress = tolower(EmailAddress);
+BitwardenEventLogs
+| where TimeGenerated > ago(90d)
+| extend LPEmail = tolower(memberUserEmail)
+| where LPEmail in (lpuser)
+| where eventTypeName in ("OrganizationUser_FirstSsoLogin")
+| summarize min(TimeGenerated) by LPEmail

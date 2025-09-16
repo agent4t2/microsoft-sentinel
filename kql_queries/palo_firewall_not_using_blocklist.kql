@@ -1,0 +1,7 @@
+//Identifies firewalls which are not using the EDL Sentinel IP Blocklist
+CommonSecurityLog
+| where DeviceVendor contains "Palo"
+| where Activity contains "SYSTEM"
+| where Message contains "Sentinel" and Message contains "not referenced by a rule"
+| summarize max(TimeGenerated) by DeviceName, Message
+| order by DeviceName asc

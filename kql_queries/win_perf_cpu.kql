@@ -1,0 +1,5 @@
+Perf
+| where Computer matches regex ".*(DC1|DC2|DC01|DC02|DC3|DC03).*" 
+| where ObjectName == "Processor Information" and CounterName == "% Processor Time" and InstanceName == "_Total"  
+| summarize AvgCPUUsage=avg(CounterValue) by bin(TimeGenerated, 15m), Computer  
+| render timechart
