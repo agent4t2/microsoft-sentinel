@@ -1,0 +1,324 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "Recurrence_Every_2min": {
+        "type": "Recurrence",
+        "recurrence": {
+          "interval": 2,
+          "frequency": "Minute"
+        }
+      }
+    },
+    "actions": {
+      "Get_Token": {
+        "type": "Http",
+        "inputs": {
+          "uri": "@{parameters('BrivoAuthBaseUrl')}/oauth/token",
+          "method": "POST",
+          "headers": {
+            "Authorization": "Basic @{body('Get_Base64_Creds')?['value']}",
+            "api-key": "@{body('Get_API_Key')?['value']}",
+            "Content-Type": "application/x-www-form-urlencoded"
+          },
+          "body": "grant_type=password&username=@{body('Get_User')?['value']}&password=@{body('Get_Password')?['value']}"
+        },
+        "runtimeConfiguration": {
+          "secureData": { "properties": ["inputs", "outputs"] },
+          "contentTransfer": { "transferMode": "Chunked" }
+        }
+      },
+      "HTTP": {
+        "type": "Http",
+        "inputs": {
+          "uri": "@{parameters('BrivoApiBaseUrl')}/v1/api/events/access?pageSize=100&filter=occurred__gt:@{variables('Offset')}",
+          "method": "GET",
+          "headers": {
+            "Authorization": "Bearer @{body('Get_Token')?['access_token']}",
+            "api-key": "@{body('Get_API_Key')?['value']}",
+            "Content-Type": "application/json"
+          }
+        },
+        "runtimeConfiguration": {
+          "contentTransfer": { "transferMode": "Chunked" }
+        }
+      },
+      "Parse_JSON": {
+        "type": "ParseJson",
+        "inputs": {
+          "content": "@body('HTTP')",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "objectType": { "type": "string" },
+                    "uuid": { "type": "string" },
+                    "securityAction": {
+                      "type": "object",
+                      "properties": {
+                        "securityActionId": { "type": "integer" },
+                        "action": { "type": "string" },
+                        "exception": { "type": "boolean" }
+                      }
+                    },
+                    "actor": {
+                      "type": ["object", "null"],
+                      "properties": {
+                        "id": { "type": "integer" },
+                        "name": { "type": "string" },
+                        "identityType": { "type": "string" }
+                      }
+                    },
+                    "eventObject": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "integer" },
+                        "name": { "type": "string" },
+                        "deviceType": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "integer" },
+                            "name": { "type": "string" }
+                          }
+                        }
+                      }
+                    },
+                    "site": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "integer" },
+                        "siteName": { "type": "string" }
+                      }
+                    },
+                    "occurred": { "type": "string" },
+                    "processed": { "type": "string" },
+                    "eventData": {
+                      "type": "object",
+                      "properties": {
+                        "actorName": { "type": "string" },
+                        "objectName": { "type": "string" },
+                        "objectGroupName": { "type": "string" },
+                        "actionAllowed": { "type": "boolean" },
+                        "userTypeId": { "type": "integer" },
+                        "objectTypeId": { "type": "integer" },
+                        "credentials": {
+                          "type": "array",
+                          "items": {
+                            "type": ["object", "null"],
+                            "properties": {
+                              "id": { "type": ["integer", "null"] },
+                              "credentialUsedWithOfflineLocks": { "type": "boolean" }
+                            }
+                          }
+                        },
+                        "credentialObjectId": { "type": "integer" },
+                        "deviceTypeId": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              },
+              "pageSize": { "type": "integer" }
+            }
+          }
+        }
+      },
+      "For_each_event": {
+        "type": "Foreach",
+        "foreach": "@outputs('Parse_JSON')?['body']?['data']",
+        "actions": {
+          "Condition_Has_Actor_ID": {
+            "type": "If",
+            "expression": {
+              "and": [
+                {
+                  "not": {
+                    "equals": [
+                      "@item()?['actor']?['id']",
+                      ""
+                    ]
+                  }
+                }
+              ]
+            },
+            "actions": {
+              "Get_Custom_Fields": {
+                "type": "Http",
+                "inputs": {
+                  "uri": "@{parameters('BrivoApiBaseUrl')}/v1/api/users/@{item()?['actor']?['id']}/custom-fields",
+                  "method": "GET",
+                  "headers": {
+                    "Authorization": "Bearer @{body('Refresh_Token')?['access_token']}",
+                    "api-key": "@{body('Get_API_Key')?['value']}",
+                    "Content-Type": "application/json"
+                  }
+                },
+                "runtimeConfiguration": {
+                  "contentTransfer": { "transferMode": "Chunked" }
+                }
+              },
+              "Parse_JSON_2": {
+                "type": "ParseJson",
+                "inputs": {
+                  "content": "@body('Get_Custom_Fields')",
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "integer" },
+                            "fieldType": { "type": "string" },
+                            "fieldName": { "type": "string" },
+                            "value": { "type": "string" }
+                          }
+                        }
+                      },
+                      "count": { "type": "integer" }
+                    }
+                  }
+                }
+              },
+              "For_each": {
+                "type": "Foreach",
+                "foreach": "@outputs('Parse_JSON_2')?['body']?['data']",
+                "actions": {
+                  "Switch": {
+                    "type": "Switch",
+                    "expression": "@item()?['fieldName']",
+                    "cases": {
+                      "Case": {
+                        "case": "EMPLOYEE ID",
+                        "actions": {
+                          "Set_variable": {
+                            "type": "SetVariable",
+                            "inputs": {
+                              "name": "Emp ID",
+                              "value": "@item()?['value']"
+                            }
+                          }
+                        }
+                      },
+                      "Case 2": {
+                        "case": "MED EE ID",
+                        "actions": {
+                          "Set_variable_1": {
+                            "type": "SetVariable",
+                            "inputs": {
+                              "name": "MED EE ID",
+                              "value": "@item()?['value']"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "Send_Data": {
+                "type": "ApiConnection",
+                "inputs": {
+                  "host": {
+                    "connection": {
+                      "name": "@parameters('$connections')['loganalytics']['connectionId']"
+                    }
+                  },
+                  "method": "post",
+                  "body": "{\n\"event_id\": \"@{item()?['uuid']}\",\n\"object_type\":\"@{item()?['objectType']}\",\n\"timestamp\":\"@{item()?['occurred']}\",\n\"actor_name\":\"@{item()?['eventData']?['actorName']}\",\n\"identity_type\":\"@{item()?['actor']?['identityType']}\",\n\"site_id\":\"@{item()?['site']?['id']}\",\n\"site_name\":\"@{item()?['site']?['siteName']}\",\n\"user_id\":\"@{item()?['actor']?['id']}\",\n\"user_name\":\"@{item()?['actor']?['name']}\",\n\"door_name\":\"@{item()?['eventObject']?['name']}\",\n\"result\":\"@{item()?['securityAction']?['action']}\",\n\"empid\":\"@{variables('Emp ID')}\",\n\"medeeid\":\"@{variables('MED EE ID')}\"\n}",
+                  "headers": {
+                    "Log-Type": "@{parameters('LogType')}"
+                  },
+                  "path": "/api/logs"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Initialize_Offset": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            {
+              "name": "Offset",
+              "type": "string",
+              "value": "@{subtractFromTime(utcNow(),parameters('OffsetMinutes'),'Minute')}"
+            }
+          ]
+        }
+      },
+      "Initialize_Emp_ID": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            { "name": "Emp ID", "type": "string" }
+          ]
+        }
+      },
+      "Initialize_Med_Emp_ID": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            { "name": "MED EE ID", "type": "string" }
+          ]
+        }
+      },
+      "Initialize_HTTP_Err": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            { "name": "HTTP Error Code", "type": "integer" }
+          ]
+        }
+      },
+      "Initialize_RefreshToken": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            { "name": "RefreshToken", "type": "string" }
+          ]
+        }
+      }
+    },
+    "outputs": {},
+    "parameters": {
+      "BrivoAuthBaseUrl": {
+        "type": "String",
+        "defaultValue": "https://auth.example.com"
+      },
+      "BrivoApiBaseUrl": {
+        "type": "String",
+        "defaultValue": "https://api.example.com"
+      },
+      "BrivoSiteID": {
+        "defaultValue": "00000000",
+        "type": "String"
+      },
+      "OffsetMinutes": {
+        "defaultValue": 2,
+        "type": "Int"
+      },
+      "LogType": {
+        "type": "String",
+        "defaultValue": "CustomLogType"
+      },
+      "$connections": {
+        "type": "Object",
+        "defaultValue": {}
+      }
+    }
+  },
+  "parameters": {
+    "$connections": {
+      "type": "Object",
+      "value": {}
+    }
+  }
+}
