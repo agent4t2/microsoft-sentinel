@@ -1,0 +1,73 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/<GUID>')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/<GUID>')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Missing Performance Counters",
+                "description": "Identifies when an active host is no longer sending performance counters to Sentinel.",
+                "severity": "Low",
+                "enabled": false,
+                "query": "// Hosts Sending Heartbeat but Missing Perf Logs  \nlet timeframe = ago(1d);  \nlet heartbeatHosts = Heartbeat  \n| where TimeGenerated >= timeframe  \n| distinct Computer, OSType;  \nlet perfHosts = Perf  \n| where TimeGenerated >= timeframe  \n| distinct Computer;  \nheartbeatHosts  \n| where Computer !contains \"ama-\"  \n| where Computer !startswith \"cmg\"  \n| where Computer !in (perfHosts)  \n| project Computer, OSType  \n| sort by Computer asc\n",
+                "queryFrequency": "P1D",
+                "queryPeriod": "P1D",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "Impact",
+                    "Evasion"
+                ],
+                "techniques": [],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "HostName",
+                                "columnName": "Computer"
+                            },
+                            {
+                                "identifier": "OSFamily",
+                                "columnName": "OSType"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}

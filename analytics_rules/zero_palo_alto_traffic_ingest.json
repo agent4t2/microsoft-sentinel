@@ -1,0 +1,77 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/<GUID>')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/<GUID>')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Zero Palo Alto Traffic Ingest",
+                "description": "Alerts when there is zero traffic log ingest from Palo Alto Firewalls.",
+                "severity": "High",
+                "enabled": true,
+                "query": "let total_log_threshold = 1;\nlet lookback = 1h;\nlet step = 15m;\nlet historical_window = 7d;\n// Identify active firewalls to profile\nlet PaloFW = CommonSecurityLog \n  | where TimeGenerated > ago(1d) \n  | where tolower(Computer) startswith \"fw\" or tolower(Computer) startswith \"palo\" or tolower(Computer) contains \"ngfw\"\n  | summarize by Computer;\n// Build historical baseline per firewall (avg logs per bin)\nlet FirewallBaseline = CommonSecurityLog\n  | where TimeGenerated between (ago(historical_window) .. ago(1d))\n  | where DeviceVendor == \"Palo Alto Networks\"\n  | where Activity in (\"TRAFFIC\")\n  | where Computer in (PaloFW)\n  | summarize bin_count = count() by Computer, bin(TimeGenerated, step)\n  | summarize baseline_avg_logs_per_bin = avg(bin_count) by Computer;\n// Evaluate recent log behavior per firewall\nlet LiveLogAnalysis = CommonSecurityLog\n  | where TimeGenerated > ago(lookback)\n  | where DeviceVendor == \"Palo Alto Networks\"\n  | where Activity in (\"TRAFFIC\")\n  | where Computer in (PaloFW)\n  | make-series log_count = count() on TimeGenerated from ago(lookback + step) to now() step step by Computer\n  | extend filtered_log_count = array_slice(log_count, 1, array_length(log_count))\n  | mv-expand val = filtered_log_count\n  | extend val = toint(val)\n  | summarize \n      zero_bins = countif(val == 0), \n      total_logs = sum(val), \n      log_series = make_list(val) \n    by Firewall = Computer;\n// Enrich with baseline and dynamic HArole tagging\nLiveLogAnalysis\n| join kind=leftouter (\n    FirewallBaseline\n    | project Firewall=Computer, baseline_avg_logs_per_bin\n) on Firewall\n| extend FW = tolower(Firewall)\n| extend HArole = case(\n    FW contains \"01\", \"Primary\",\n    FW contains \"02\", \"Standby\",\n    FW contains \"fw1\", \"Primary\",\n    FW contains \"fw2\", \"Standby\",\n    \"Unknown\")\n// Final filtering logic\n| where zero_bins >= 2 and baseline_avg_logs_per_bin > 0 and total_logs < (baseline_avg_logs_per_bin * (lookback / step) * 0.5)\n// Compute percent drop and prep alert JSON\n| extend \n    ingest_vs_baseline_pct = round(100.0 * total_logs / (baseline_avg_logs_per_bin * (lookback / step)), 1),\n    LastChecked = now(),\n    AlertDetails = pack_all()\n// Final output\n| project LastChecked, Firewall, HArole, zero_bins, total_logs, baseline_avg_logs_per_bin, ingest_vs_baseline_pct, log_series, AlertDetails\n| order by ingest_vs_baseline_pct asc\n",
+                "queryFrequency": "PT15M",
+                "queryPeriod": "PT1H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": true,
+                "startTimeUtc": null,
+                "tactics": [
+                    "Impact",
+                    "InhibitResponseFunction"
+                ],
+                "techniques": [],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": true,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDynamicProperties": []
+                },
+                "customDetails": {
+                    "LastChecked": "LastChecked",
+                    "Firewall": "Firewall",
+                    "EmptyBins": "zero_bins",
+                    "LogSeries": "log_series",
+                    "TotalLogs": "total_logs"
+                },
+                "entityMappings": [
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "HostName",
+                                "columnName": "Firewall"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}

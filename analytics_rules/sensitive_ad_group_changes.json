@@ -1,0 +1,106 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/<GUID>')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/<GUID>')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Sensitive AD Group Changes",
+                "description": "Alerts on member additions and removals from AD sensitive groups",
+                "severity": "High",
+                "enabled": true,
+                "query": "SecurityEvent\n| where EventID in (4728, 4729, 4732, 4733, 4756, 4757)\n| where TargetUserName in (\"Domain Admins\", \"Enterprise Admins\", \"Schema Admins\", \"Group Policy Creator Owners\", \"Domain Controllers\", \"Read-only Domain Controllers\", \"Replicator\", \"Server Operators\")\n| project\n    TimeGenerated,\n    Computer,\n    EventID,\n    EventData,\n    TargetUserName,\n    MemberName,\n    SubjectUserName,\n    SubjectDomainName,\n    Activity = case(\n        EventID == 4728 or EventID == 4732 or EventID == 4756, \"Added to Group\",\n        EventID == 4729 or EventID == 4733 or EventID == 4757, \"Removed from Group\",\n        \"Other\"\n    ),\n    TargetDomainName,\n    AdditionalFields = parse_xml(EventData)\n| extend Member = tostring(AdditionalFields.EventData.Data[1][\"#text\"])\n| extend MemberUserName = extract(@\"CN=([^,]+)\", 1, MemberName)\n| project TimeGenerated, Activity, SensitiveGroup= TargetUserName, MemberSID = Member, MemberUserName, ActingUser = SubjectUserName, Computer\n| sort by TimeGenerated desc",
+                "queryFrequency": "PT30M",
+                "queryPeriod": "PT30M",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "PrivilegeEscalation"
+                ],
+                "techniques": [
+                    "T1078"
+                ],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "ActingUser"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "HostName",
+                                "columnName": "Computer"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "SecurityGroup",
+                        "fieldMappings": [
+                            {
+                                "identifier": "DistinguishedName",
+                                "columnName": "SensitiveGroup"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Sid",
+                                "columnName": "MemberSID"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "MemberUserName"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}

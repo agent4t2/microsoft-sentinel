@@ -1,0 +1,72 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/<GUID>')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/<GUID>')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "TI Map IP Entity to Signal Sciences WAF Event",
+                "description": "This query maps any IP indicators of compromise (IOCs) from threat intelligence (TI), by searching for matches in Signal Sciences WAF logs",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "let dt_lookBack = 1h;\nlet ioc_lookBack = 14d;\nlet IP_Indicators = ThreatIntelIndicators\n    | where isnotempty(ObservableValue)\n    | where Pattern matches regex @\"(\\d{1,3}\\.){3}\\d{1,3}\"\n    | extend TI_IP = extract(@\"(\\d{1,3}\\.){3}\\d{1,3}\", 0, Pattern)\n    | where TimeGenerated >= ago(ioc_lookBack)\n    | extend TI_ipEntity =  ObservableValue\n    | where ipv4_is_private(TI_ipEntity) == false\n        and TI_ipEntity !startswith \"fe80\"\n        and TI_ipEntity !startswith \"::\"\n        and TI_ipEntity !startswith \"127.\"\n    | summarize LatestIndicatorTime = arg_max(TimeGenerated, *) by Id\n    | where IsActive == true and ValidUntil > now();\nIP_Indicators\n| join kind=innerunique (\n    Signal_Sciences_CL\n    | where timestamp_t >= ago(dt_lookBack)\n    | where isnotempty(RemoteIp_s)\n    | where ipv4_is_private(RemoteIp_s) == false\n        and RemoteIp_s !startswith \"fe80\"\n        and RemoteIp_s !startswith \"::\"\n        and RemoteIp_s !startswith \"127.\"\n    | extend SigSci_TimeStamp = timestamp_t\n    )\n    on $left.TI_ipEntity == $right.RemoteIp_s\n| where SigSci_TimeStamp < ValidUntil\n| summarize SigSci_TimeStamp = arg_max(SigSci_TimeStamp, *) by Id, RemoteIp_s\n| project\n    timestamp = SigSci_TimeStamp,\n    Id,\n    Tags,\n    ValidUntil,\n    Confidence,\n    TI_ipEntity,\n    ObservableValue,\n    Type",
+                "queryFrequency": "PT1H",
+                "queryPeriod": "P14D",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "CommandAndControl"
+                ],
+                "techniques": [
+                    "T1071"
+                ],
+                "subTechniques": [],
+                "alertRuleTemplateName": "<GUID>",
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDynamicProperties": []
+                },
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "ObservableValue"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": "1.4.2"
+            }
+        }
+    ]
+}

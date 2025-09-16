@@ -1,0 +1,70 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/<GUID>')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/<GUID>')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "External Port Scanning to Palo Alto FW",
+                "description": "Excludes Qualys, DAST IPs, GPGateways and all Site Public IPs.",
+                "severity": "Low",
+                "enabled": true,
+                "query": "let lookback = 1h;\nlet port_count_threshold = 160;\nlet minConfidenceScore = 50;\nlet ignoredactivity = dynamic([\"deny\",\"drop\"]);\nlet gpip = _GetWatchlist(\"gpgateway\") | project GPGatewayIP;\nlet siteip = _GetWatchlist(\"sitepubip\") | project SitePublicIP;\nlet dastip = _GetWatchlist(\"dastips\") | project DastIP;\nlet qualys_ips = _GetWatchlist(\"qualysips\") | project QualysIP;\nlet qualys_ranges = toscalar(_GetWatchlist(\"qualysips\") | summarize make_set(QualysCIDR));\nlet PortScanningIPs = CommonSecurityLog\n| where TimeGenerated > ago(lookback)\n| where DeviceVendor contains \"Palo\"\n| where Activity =~ 'TRAFFIC'\n| where isnotempty(DestinationPort) and isnotempty(SourceIP)\n| where not(ipv4_is_private(SourceIP))\n| where SourceIP !in (gpip)\n| where SourceIP !in (siteip)\n| where SourceIP !in (qualys_ips)\n| where SourceIP !in (dastip)\n| where not(ipv4_is_in_any_range(SourceIP, qualys_ranges))\n| where not(DeviceAction has_any (ignoredactivity))\n| summarize PortSet = make_set(DestinationPort) by SourceIP, bin(TimeGenerated, 15m)\n| where array_length(PortSet) > port_count_threshold\n| extend PortCount = array_length(PortSet);\nPortScanningIPs\n| join kind=leftouter (\n    ThreatIntelligenceIndicator\n    | where TimeGenerated > ago(14d)\n    | where ConfidenceScore >= minConfidenceScore\n    | project ThreatIP = NetworkIP, ThreatType, Description, ConfidenceScore\n) on $left.SourceIP == $right.ThreatIP\n| extend ThreatMatch = iff(isnotempty(ThreatType), \"Yes\", \"No\")\n| order by ThreatMatch desc, ConfidenceScore desc, PortCount desc",
+                "queryFrequency": "PT1H",
+                "queryPeriod": "PT1H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "Reconnaissance"
+                ],
+                "techniques": [
+                    "T1595"
+                ],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "SourceIP"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}

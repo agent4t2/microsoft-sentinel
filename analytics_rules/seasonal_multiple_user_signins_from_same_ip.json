@@ -1,0 +1,82 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/<GUID>')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/<GUID>')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Seasonal - Multiple Users with Same Login Source IP",
+                "description": "Alerts on multiple seasonal accounts logging in from the same IP address.",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "let lookback = 7d;\nlet SeasonalHire = \n    _GetWatchlist(\"seasonalhires\")\n    | where Location startswith \"REM\"\n    | project SeasonalEmail;\nlet CorpSalesSeasonal = \n        IdentityInfo\n        | where isnotempty(AccountObjectId) \n            and TimeGenerated >= datetime(2020-01-01 00:00:00)\n            and Department contains \"Corp. Sales Seasonal\"\n            and not(UserAccountControl contains \"AccountDisabled\")\n        | extend AcctInfo = dynamic_to_json(UserAccountControl)\n        | summarize arg_max(TimeGenerated, *) by AccountObjectId\n        | project AccountUPN;\nlet ExcludedIPs =\n    _GetWatchlist(\"sitepubip\")\n    | project SitePublicIP;\nlet GlobalProtectIPs =\n    _GetWatchlist(\"gpgateway\")\n    | project GPGatewayIP;\nlet AzureCIDRs =\n    toscalar(\n        _GetWatchlist(\"azureip\")\n        | project IP_CIDR\n        | summarize make_set(IP_CIDR)\n    );\nSigninLogs\n| where TimeGenerated > ago(lookback)\n| where UserPrincipalName has_any (SeasonalHire) or UserPrincipalName has_any (CorpSalesSeasonal)\n| where not(IPAddress in (ExcludedIPs))\n| where not(IPAddress in (GlobalProtectIPs))\n| where not(ipv4_is_in_any_range(IPAddress, AzureCIDRs))\n| summarize\n    CountryCodes = make_set(LocationDetails.countryOrRegion),\n    StateCodes = make_set(LocationDetails.state),\n    DeviceListDyn = make_set(DeviceDetail.deviceId),\n    UserCount    = dcount(UserPrincipalName),\n    UserListDyn  = make_set(UserPrincipalName)\n  by IPAddress\n| where UserCount between (2 .. 30)\n| extend CountryCode = strcat_array(CountryCodes, \",\")\n| extend StateCode = strcat_array(StateCodes, \",\")\n| extend DeviceList    = strcat_array(DeviceListDyn, \",\")\n| extend UserList    = strcat_array(UserListDyn, \",\")\n| project IPAddress, CountryCode, StateCode, UserCount, UserList, DeviceList\n| order by UserCount desc",
+                "queryFrequency": "PT4H",
+                "queryPeriod": "P7D",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": "2025-09-09T21:00:00.000Z",
+                "tactics": [
+                    "CredentialAccess",
+                    "InitialAccess"
+                ],
+                "techniques": [],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": {
+                    "Country": "CountryCode",
+                    "State": "StateCode",
+                    "Devices": "DeviceList"
+                },
+                "entityMappings": [
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "IPAddress"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "UserList"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}

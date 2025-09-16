@@ -1,0 +1,87 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/<GUID>')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/<GUID>')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "User PIM Elevation to Global Admin",
+                "description": "Alerts whenever an Entra ID user has successfully elevated to Global Admin",
+                "severity": "Informational",
+                "enabled": true,
+                "query": "AuditLogs\n| where Category == \"RoleManagement\"\n| where OperationName == \"Add member to role completed (PIM activation)\"\n| extend InitiatedBy = tostring(InitiatedBy.user.userPrincipalName)\n| mv-expand TargetResource = TargetResources\n| extend PropertyName = tostring(TargetResources[0].displayName)\n       , NewValue = tostring(TargetResources[0].displayName)\n| where TargetResources[0].displayName == \"Global Administrator\"\n| distinct TimeGenerated, Identity, InitiatedBy, NewValue, Result, CorrelationId, OperationName, LoggedByService, ResultReason, Resource\n\n",
+                "queryFrequency": "PT5M",
+                "queryPeriod": "PT5M",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "PrivilegeEscalation"
+                ],
+                "techniques": [],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "AlertPerResult"
+                },
+                "alertDetailsOverride": {
+                    "alertDisplayNameFormat": "Successful PIM to Global Admin by {{Identity}} ",
+                    "alertDescriptionFormat": "User {{Identity}}  has successfully elevated privileges to Global Administrator at {{TimeGenerated}} .",
+                    "alertDynamicProperties": []
+                },
+                "customDetails": {
+                    "Reason": "ResultReason"
+                },
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "InitiatedBy"
+                            },
+                            {
+                                "identifier": "Name",
+                                "columnName": "Identity"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "AzureResource",
+                        "fieldMappings": [
+                            {
+                                "identifier": "ResourceId",
+                                "columnName": "Resource"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}

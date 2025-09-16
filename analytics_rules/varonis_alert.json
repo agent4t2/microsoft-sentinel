@@ -1,0 +1,99 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/<GUID>')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/<GUID>')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Varonis Alert",
+                "description": "",
+                "severity": "Low",
+                "enabled": true,
+                "query": "VaronisAlerts_CL\n| where isnotempty(AlertSeverity_s)\n| extend DeviceNames = parse_json(DeviceNames_s)\n| mv-expand DeviceNames\n| extend Devices_a = tostring(DeviceNames)\n| extend UserNames = parse_json(UserSamAccountNames_s)\n| mv-expand UserNames\n| extend Users_a = tostring(UserNames)\n| extend SourceTypes = parse_json(DataSourceTypes_s)\n| mv-expand SourceTypes\n| extend Types_a = tostring(SourceTypes)\n| extend DataSources = parse_json(DataSources_s)\n| mv-expand DataSources\n| extend Sources_a = tostring(DataSources)\n| extend Countries = parse_json(Countries_s)\n| mv-expand Countries\n| extend Countries_a = tostring(Countries)\n| extend States = parse_json(States_s)\n| mv-expand States\n| extend States_a = tostring(States)\n| project TimeGenerated, Devices_a, Users_a, Sources_a, Types_a, Countries_a, States_a, AlertId_g, ThreatDetectionPolicyName_s, AlertTime_t, AlertSeverity_s, AlertCategory_s, Status_s, BlacklistedLocation_b, AbnormalLocations_s, EventsCount_d, UserNames_s, ContainsMaliciousExternalIPs_b, AggregatedExternalIPThreatTypes_s, InitialEventTimeUTC_t, AccountsHaveFollowUpIndicators_s, AlertTimeUTC_t, InitialEventTime_t, AssignedtoVaronis_b, MitreTacticName_s, IngestTime_t, Assets_s, FlaggedDataExposed_s, SensitiveDataExposed_s, PrivilegedAccountType_s, Type",
+                "queryFrequency": "PT1H",
+                "queryPeriod": "PT1H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "Impact"
+                ],
+                "techniques": [],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": true,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDisplayNameFormat": "Varonis {{{ThreatDetectionPolicyName_s}} ",
+                    "alertSeverityColumnName": "AlertSeverity_s",
+                    "alertDynamicProperties": []
+                },
+                "customDetails": {},
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "Users_a"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "CloudApplication",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "Types_a"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "HostName",
+                                "columnName": "Devices_a"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "File",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "Assets_s"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}

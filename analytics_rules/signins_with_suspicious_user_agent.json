@@ -1,0 +1,91 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/<GUID>')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/<GUID>')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Signins with Suspicious User Agent",
+                "description": "Identifies signins with a suspicious user agent.",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "// Identifies signins from sources with suspicious user agents\n// Watchlist Source:  GitHub, awesome-lists /Lists /suspicious_http_user_agents_list.csv\nlet sususeragent = _GetWatchlist(\"SusUserAgent\")\n    | extend http_user_agent = tostring(http_user_agent)\n    | project http_user_agent, metadata_category, metadata_description;\nlet ua_list = sususeragent\n    | project http_user_agent;\nSigninLogs\n| extend UserAgent = tostring(UserAgent)\n| where UserAgent in (ua_list)\n| project TimeGenerated, UserPrincipalName, Category, Identity, Resource, AppDisplayName, IPAddress, UserAgent\n| join kind=inner (sususeragent) on $left.UserAgent == $right.http_user_agent\n| project TimeGenerated, AppDisplayName, Name = Identity, Email = UserPrincipalName, Suspicious_User_Agent = UserAgent, Agent_Category = metadata_category, Agent_Description = metadata_description, Resource\n| order by TimeGenerated desc\n",
+                "queryFrequency": "PT1H",
+                "queryPeriod": "PT1H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "Reconnaissance",
+                    "DefenseEvasion"
+                ],
+                "techniques": [],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": true,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "Email"
+                            },
+                            {
+                                "identifier": "DisplayName",
+                                "columnName": "Name"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "AzureResource",
+                        "fieldMappings": [
+                            {
+                                "identifier": "ResourceId",
+                                "columnName": "Resource"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "CloudApplication",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "AppDisplayName"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}

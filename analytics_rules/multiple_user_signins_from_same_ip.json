@@ -1,0 +1,83 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/<GUID>')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/<GUID>')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Multiple User Signins From Same IP",
+                "description": "Identifies multiple user accounts with signins from the same IP address, outside of the US and CA.",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "let ExcludedIPs= _GetWatchlist(\"sitepubip\")\n    | project SitePublicIP;\nlet GlobalProtectIPs = _GetWatchlist(\"gpgateway\")\n    | project GPGatewayIP;\nlet ZscalerIPs = _GetWatchlist(\"zscalerip\")\n    | project ZScalerIP;\nSigninLogs\n| where not(LocationDetails.countryOrRegion has_any(\"US\",\"CA\"))\n| where not(UserPrincipalName has_any(\"iqo-\",\"spi-\",\"jinsinga\",\"bshea\",\"amilevoj\",\"bingram\",\"jmccann\",\"cmccann\",\"bpozdoll\",\"@inspiro.com\",\"@iqor.com\"))\n| where not(IPAddress in (ExcludedIPs))\n| where not(IPAddress in (GlobalProtectIPs))\n| where not(IPAddress in (ZscalerIPs))\n| where UserPrincipalName contains \"@\"\n| summarize CountryCode = make_set(LocationDetails.countryOrRegion), UserCount = dcount(UserPrincipalName), UserList = make_set(UserPrincipalName) by IPAddress\n| where UserCount between (2 .. 20)\n| order by UserCount desc",
+                "queryFrequency": "P1D",
+                "queryPeriod": "P3D",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "InitialAccess"
+                ],
+                "techniques": [],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": true,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "P1D",
+                        "matchingMethod": "Selected",
+                        "groupByEntities": [
+                            "IP"
+                        ],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDynamicProperties": []
+                },
+                "customDetails": {
+                    "CountryCode": "CountryCode"
+                },
+                "entityMappings": [
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "IPAddress"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "UserList"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}

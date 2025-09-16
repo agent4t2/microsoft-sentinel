@@ -1,0 +1,70 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/<GUID>')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/<GUID>')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Missing Windows Host Logs in Sentinel",
+                "description": "Identifies Windows hosts which have not sent a heartbeat to Azure in over 24 hours.",
+                "severity": "Informational",
+                "enabled": true,
+                "query": "let UnhealthyCriteria = 1d;\nlet lookback = 13d;\nlet decommhost = _GetWatchlist(\"decommhosts\")\n    | project DecommHost;\nlet deallochost =  _GetWatchlist('deallochosts')\n    | where ReallocatedDate > now()\n    | project DeallocatedHost;     \nHeartbeat\n| where TimeGenerated > ago(lookback)\n| where Type == \"Heartbeat\"\n| where not (Computer has_any (\"aks-default\", \"ama-metrics\", \"clone\"))\n| where not (Computer has_any (decommhost))\n| where not (Computer has_any (deallochost))\n| summarize LastHeartbeat = max(TimeGenerated) by Computer, OSType\n| extend State = iff(LastHeartbeat < ago(UnhealthyCriteria), 'Unhealthy', 'Healthy')\n| project\n    [\"Computer\"]=strcat(Computer),\n    State,\n    OSType,\n    LastHeartbeat = format_datetime(LastHeartbeat, 'yyyy-MM-dd HH:mm:ss')\n| where State == \"Unhealthy\"\n| where OSType == \"Windows\"\n| order by State desc, LastHeartbeat desc, Computer asc\n\n",
+                "queryFrequency": "P1D",
+                "queryPeriod": "P13D",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [],
+                "techniques": [],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "HostName",
+                                "columnName": "Computer"
+                            },
+                            {
+                                "identifier": "OSFamily",
+                                "columnName": "OSType"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}

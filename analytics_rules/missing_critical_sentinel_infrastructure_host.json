@@ -1,0 +1,73 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/<GUID>')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/<GUID>')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Missing Critical Sentinel Infrastructure Host",
+                "description": "Identifies Critical Sentinel Infrastructure Hosts which have not sent a heartbeat to Azure in over 5 minutes.",
+                "severity": "High",
+                "enabled": true,
+                "query": "let UnhealthyCriteria = 15m;\nlet lookback = 1h;\nlet criticalhost = _GetWatchlist(\"sentinelhosts\")\n    | project SentinelHostName;\nlet decommhost = _GetWatchlist(\"decommhosts\")\n    | project DecommHost;\nlet deallochost =  _GetWatchlist('deallochosts')\n    | where ReallocatedDate > now()\n    | project DeallocatedHost;       \nHeartbeat\n| where TimeGenerated > ago(lookback)\n| where Type == \"Heartbeat\"\n| where Computer has_any (criticalhost)\n| where not (Computer has_any (\"aks-default\", \"ama-metrics\", \"clone\"))\n| where not (Computer has_any (decommhost))\n| where not (Computer has_any (deallochost))\n| summarize LastHeartbeat = max(TimeGenerated) by Computer, OSType\n| extend State = iff(LastHeartbeat < ago(UnhealthyCriteria), 'Unhealthy', 'Healthy')\n| project\n    [\"Computer\"]=strcat(Computer),\n    State,\n    OSType,\n    LastHeartbeat = format_datetime(LastHeartbeat, 'yyyy-MM-dd HH:mm:ss')\n| where State == \"Unhealthy\"\n| order by State desc, LastHeartbeat desc, Computer asc\n",
+                "queryFrequency": "PT5M",
+                "queryPeriod": "PT1H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "Impact",
+                    "InhibitResponseFunction"
+                ],
+                "techniques": [],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "HostName",
+                                "columnName": "Computer"
+                            },
+                            {
+                                "identifier": "OSFamily",
+                                "columnName": "OSType"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}

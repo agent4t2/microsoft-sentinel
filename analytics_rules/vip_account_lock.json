@@ -1,0 +1,104 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/<GUID>')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/<GUID>')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "VIP Account Locked",
+                "description": "Alerts when a VIP account (AD or Entra) becomes locked.",
+                "severity": "High",
+                "enabled": true,
+                "query": "let VIPUPNs = _GetWatchlist('ExchangeVIP')\n    | project userPrincipalName;\nlet VIPACCTs = _GetWatchlist('ExchangeVIP')\n    | project sAMAccountName;\nlet lookback = 14d;\nlet CloudLockouts =\nSigninLogs\n| where UserPrincipalName in (VIPUPNs)\n| where TimeGenerated >= ago(lookback)\n| where ResultType == \"50053\" or tostring(Status.errorCode) == \"50053\"\n| extend Account = coalesce(UserPrincipalName, tostring(Identity))\n| extend ErrorCode = tostring(Status.errorCode)\n| extend FailureReason = coalesce(tostring(Status.failureReason), ResultDescription)\n| extend Reason = iff(isnotempty(FailureReason), FailureReason, \"Account locked due to too many failed sign-ins\")\n| extend Location = trim(\" ,\", strcat(tostring(LocationDetails.state), \", \", tostring(LocationDetails.countryOrRegion)))\n| project\n    TimeGenerated,\n    Account,\n    Source = \"AzureAD\",\n    Reason,\n    ErrorCode,\n    IPAddress,\n    ClientAppUsed,\n    AppDisplayName,\n    Location,\n    CallerComputer = tostring(\"\"),\n    TargetDomain  = tostring(\"\"),\n    Computer      = tostring(\"\");\nlet OnPremLockouts =\nSecurityEvent\n| where Account has_any (VIPACCTs)\n| where TimeGenerated >= ago(lookback)\n| where EventID == 4740\n| extend CallerComputer = tostring(extract(@\"<Data Name=\"\"CallerComputerName\"\">([^<]*)</Data>\", 1, EventData))\n| extend TargetDomain  = tostring(extract(@\"<Data Name=\"\"TargetDomainName\"\">([^<]*)</Data>\", 1, EventData))\n| extend Account       = tostring(TargetUserName)\n| extend Reason = iff(isnotempty(CallerComputer),\n                      strcat(\"AD lockout observed. Likely repeated bad password from \", CallerComputer),\n                      \"AD lockout observed. Likely repeated bad password, cached creds, or service logon\")\n| project\n    TimeGenerated,\n    Account,\n    Source = \"OnPremAD\",\n    Reason,\n    ErrorCode = tostring(\"4740\"),\n    IPAddress = tostring(\"\"),\n    ClientAppUsed = tostring(\"\"),\n    AppDisplayName = tostring(\"\"),\n    Location = tostring(\"\"),\n    CallerComputer,\n    TargetDomain,\n    Computer;\nlet RecentFailedLogons =\nSecurityEvent\n| where TimeGenerated >= ago(lookback)\n| where EventID == 4625\n| extend SubStatus = tostring(extract(@\"<Data Name=\"\"SubStatus\"\">([^<]*)</Data>\", 1, EventData))\n| extend FailureHint =\n    case(\n        SubStatus == \"0xC0000234\", \"Account is locked (0xC0000234)\",\n        SubStatus == \"0xC000006A\", \"Bad password (0xC000006A)\",\n        SubStatus == \"0xC000006F\", \"Attempted logon during restriction (0xC000006F)\",\n        SubStatus == \"0xC0000070\", \"Workstation restriction (0xC0000070)\",\n        SubStatus == \"0xC0000072\", \"Account disabled (0xC0000072)\",\n        SubStatus == \"0xC0000193\", \"Account expired (0xC0000193)\",\n        SubStatus == \"0xC0000224\", \"User must change password (0xC0000224)\",\n        SubStatus == \"0xC0000380\", \"Smartcard required (0xC0000380)\",\n        isnotempty(SubStatus), strcat(\"Failed logon (\", SubStatus, \")\"),\n        \"Failed logon\"\n    )\n| project TimeGenerated, TargetUserName, Computer, SubStatus, FailureHint\n| summarize arg_max(TimeGenerated, *) by TargetUserName, Computer;\nlet OnPremEnriched =\nOnPremLockouts\n| join kind=leftouter RecentFailedLogons\n    on $left.Account == $right.TargetUserName and $left.Computer == $right.Computer\n| extend Reason = strcat(Reason, iff(isnotempty(FailureHint), strcat(\" | Last 4625: \", FailureHint), \"\"))\n| project\n    TimeGenerated,\n    Account,\n    Source,\n    Reason,\n    ErrorCode,\n    IPAddress,\n    ClientAppUsed,\n    AppDisplayName,\n    Location,\n    CallerComputer,\n    TargetDomain,\n    Computer;\nCloudLockouts\n| union OnPremEnriched\n| order by TimeGenerated desc\n\n",
+                "queryFrequency": "PT5M",
+                "queryPeriod": "PT5M",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "InitialAccess",
+                    "CredentialAccess",
+                    "PrivilegeEscalation"
+                ],
+                "techniques": [],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDisplayNameFormat": "VIP Account {{Account}}  has become locked due to {{Reason}} .",
+                    "alertDynamicProperties": []
+                },
+                "customDetails": {
+                    "Reason": "Reason",
+                    "ErrorCode": "ErrorCode",
+                    "Location": "Location"
+                },
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "Account"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "HostName",
+                                "columnName": "Computer"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "IPAddress"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "CloudApplication",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "AppDisplayName"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}

@@ -1,0 +1,92 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/<GUID>')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/<GUID>')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "BreakGlass_Signin",
+                "description": "Alerts on a successful signin of a BreakGlass account",
+                "severity": "High",
+                "enabled": true,
+                "query": "let target_account = \"<EMAIL>\";\n// Sign-in Events from SigninLogs\nlet signin_events = SigninLogs\n| where UserPrincipalName == target_account\n| where ResultType == 0\n| extend EventType = \"SignIn\"\n| extend AccountCustomEntity = UserPrincipalName\n| extend IPCustomEntity = IPAddress\n| extend AccountDisplayName = UserPrincipalName \n| project TimeGenerated, EventType, UserPrincipalName, IPAddress, AppDisplayName, ResourceDisplayName, ConditionalAccessStatus, Location, AccountDisplayName, AccountCustomEntity, IPCustomEntity;\n// Cloud Activity Events from CloudAppEvents\nlet cloudapp_events = CloudAppEvents\n| where RawEventData has target_account\n| where ActionType == \"SignInEvent\"\n| extend EventType = \"CloudAppActivity\"\n| extend AccountCustomEntity = target_account\n| extend IPCustomEntity = tostring(parse_json(RawEventData).ClientIP)\n| project TimeGenerated, EventType, Application, ActivityType, ActionType, RawEventData, AccountDisplayName, AccountCustomEntity, IPCustomEntity;\n// Combine both sources\nunion signin_events, cloudapp_events\n| sort by TimeGenerated desc\n",
+                "queryFrequency": "PT10M",
+                "queryPeriod": "PT12M",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "PrivilegeEscalation",
+                    "InitialAccess",
+                    "CredentialAccess"
+                ],
+                "techniques": [],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": true,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT1H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "AccountDisplayName"
+                            },
+                            {
+                                "identifier": "CloudAppAccountId",
+                                "columnName": "AccountCustomEntity"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "IPCustomEntity"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "CloudApplication",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "Application"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}

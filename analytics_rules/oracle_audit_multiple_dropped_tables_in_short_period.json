@@ -1,0 +1,78 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/<GUID>')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/<GUID>')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Oracle Audit Multiple Dropped Tables in Short Period",
+                "description": "Identified instances where multiple tables have been dropped in a short period of time.",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "let tbl_threshold = 10;\noraudit_CL\n| extend auth_raw = tostring(AUTHENTICATION_TYPE)\n| extend \n    AuthType = extract(@\"\\(TYPE=\\((.*?)\\)\\)\", 1, auth_raw),\n    Protocol = extract(@\"\\(PROTOCOL=(.*?)\\)\", 1, auth_raw),\n    ClientIP = extract(@\"\\(HOST=(.*?)\\)\", 1, auth_raw),\n    Port = extract(@\"\\(PORT=(.*?)\\)\", 1, auth_raw),\n    ClientAddress = iif(auth_raw has \"(CLIENT ADDRESS=())\", \"Empty\", \"Present\")\n| where isnotempty(tostring(DBUSERNAME))\n| where ACTION_NAME =~ 'DROP'\n| extend TableName = replace(@'[,\\(\\)]', '', extract(@'(?i)SELECT(.*?)FROM\\s(.*?)\\s', 2, tostring(SQL_TEXT)))\n| where isnotempty(TableName)\n| where TableName !~ 'SELECT'\n| summarize tbl_count = dcount(TableName) by tostring(DBUSERNAME), ClientIP\n| where tbl_count > tbl_threshold\n| extend AccountCustomEntity = tostring(DBUSERNAME)\n\n",
+                "queryFrequency": "PT1H",
+                "queryPeriod": "PT1H10M",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "Evasion",
+                    "Impact"
+                ],
+                "techniques": [],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "DBUSERNAME"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "ClientIP"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}

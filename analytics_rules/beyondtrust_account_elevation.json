@@ -1,0 +1,97 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/<GUID>')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/<GUID>')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "BeyondTrust Account Elevation",
+                "description": "",
+                "severity": "Informational",
+                "enabled": true,
+                "query": "SecurityEvent  \n| where EventID == '4732'\n| where Account has_any (\"auditor\",\"liebermanZP1\")\n| extend MemberName = extract('<Data Name=\"MemberName\">([^<]+)</Data>', 1, EventData)\n| extend MemberSid = extract('<Data Name=\"MemberSid\">([^<]+)</Data>', 1, EventData)\n| extend TargetUserName = extract('<Data Name=\"TargetUserName\">([^<]+)</Data>', 1, EventData)\n| extend TargetDomainName = extract('<Data Name=\"TargetDomainName\">([^<]+)</Data>', 1, EventData)\n| extend TargetSid = extract('<Data Name=\"TargetSid\">([^<]+)</Data>', 1, EventData)\n| extend SubjectUserSid = extract('<Data Name=\"SubjectUserSid\">([^<]+)</Data>', 1, EventData)\n| extend SubjectUserName = extract('<Data Name=\"SubjectUserName\">([^<]+)</Data>', 1, EventData)\n| extend SubjectDomainName = extract('<Data Name=\"SubjectDomainName\">([^<]+)</Data>', 1, EventData)\n| extend SubjectLogonId = extract('<Data Name=\"SubjectLogonId\">([^<]+)</Data>', 1, EventData)\n| extend PrivilegeList = extract('<Data Name=\"PrivilegeList\">([^<]+)</Data>', 1, EventData)\n| project TimeGenerated, Type, EventID, Computer, EventSourceName, EventRecordId, Keywords, CategoryId, Activity, SubjectAccount, SubjectUserName, SubjectDomainName, SubjectLogonId, MemberSid, MemberName, TargetAccount,TargetUserName, TargetDomainName, PrivilegeList\n| join kind=leftouter (\n    IdentityInfo\n    | project AccountSID, AccountUPN\n) on $left.MemberSid == $right.AccountSID\n| project TimeGenerated, Type, EventID, Computer, EventSourceName, EventRecordId, Keywords, CategoryId, Activity, SubjectAccount, SubjectUserName, SubjectDomainName, SubjectLogonId, MemberSid, AccountUPN, AccountSID, TargetAccount, TargetUserName, TargetDomainName, PrivilegeList",
+                "queryFrequency": "PT1H",
+                "queryPeriod": "PT1H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "PrivilegeEscalation"
+                ],
+                "techniques": [],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": true,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT8H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDynamicProperties": []
+                },
+                "customDetails": {},
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "AccountUPN"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "HostName",
+                                "columnName": "Computer"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "SecurityGroup",
+                        "fieldMappings": [
+                            {
+                                "identifier": "DistinguishedName",
+                                "columnName": "TargetAccount"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Sid",
+                                "columnName": "MemberSid"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}

@@ -1,0 +1,87 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/<GUID>')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/<GUID>')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Oracle Audit Possible SQL Injection",
+                "description": "Detects potential SQL injection.",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "let sqli_patterns = dynamic([\n    \"admin' --\", \"admin' #\", \"admin'/*\", \n    \"0=1\", \"1=0\", \"1=1\", \"1=2\", \n    \"' or 1=1--\", \"' or 1=1#\", \"' or 1=1/*\", \n    \"') or '1'='1--\", \"') or ('1'='1--\"\n]);\noraudit_CL\n| extend auth_raw = tostring(AUTHENTICATION_TYPE)\n| extend \n    AuthType = extract(@\"\\(TYPE=\\((.*?)\\)\\)\", 1, auth_raw),\n    Protocol = extract(@\"\\(PROTOCOL=(.*?)\\)\", 1, auth_raw),\n    ClientIP = extract(@\"\\(HOST=(.*?)\\)\", 1, auth_raw),\n    Port = extract(@\"\\(PORT=(.*?)\\)\", 1, auth_raw),\n    ClientAddress = iif(auth_raw has \"(CLIENT ADDRESS=())\", \"Empty\", \"Present\")\n| where isnotempty(DBUSERNAME)\n| where isnotempty(DBNAME)\n| extend\n    MatchInSQLText = iff(SQL_TEXT has_any (sqli_patterns), true, false),\n    MatchInOSUser = iff(OS_USERNAME has_any (sqli_patterns), true, false),\n    MatchInDBUser = iff(DBUSERNAME has_any (sqli_patterns), true, false),\n    MatchInUserHost = iff(USERHOST has_any (sqli_patterns), true, false),\n    MatchInObjectName = iff(OBJECT_NAME has_any (sqli_patterns), true, false),\n    MatchInObjectSchema = iff(OBJECT_SCHEMA has_any (sqli_patterns), true, false)\n| where MatchInSQLText or MatchInOSUser or MatchInDBUser or MatchInUserHost or MatchInObjectName or MatchInObjectSchema\n| project \n    TimeGenerated, \n    USERHOST, OS_USERNAME, DBUSERNAME, SQL_TEXT, \n    Computer, DBNAME, ACTION_NAME, OBJECT_NAME, OBJECT_SCHEMA, \n    ClientIP, AuthType, Protocol, Port, ClientAddress,\n    MatchInSQLText, MatchInOSUser, MatchInDBUser, MatchInUserHost, MatchInObjectName, MatchInObjectSchema\n",
+                "queryFrequency": "PT1H",
+                "queryPeriod": "PT1H10M",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "InitialAccess",
+                    "Reconnaissance"
+                ],
+                "techniques": [],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": null,
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "OS_USERNAME"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "HostName",
+                                "columnName": "Computer"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "ClientIP"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}

@@ -1,0 +1,60 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/<GUID>')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/<GUID>')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Fastly Log Event Spike",
+                "description": "Identifies significant spikes in Fastly log events.",
+                "severity": "Low",
+                "enabled": false,
+                "query": "// Fastly Log Ingestion - Identify Significant Spikes in Events  \n// Last Updated 12/17/2024 - R.F.\nFastly_CL\n// Define Buckets\n| extend status_group = case(\n    toreal(response_status_d) >= 200 and toreal(response_status_d) < 300, \"2xx Response\",\n    toreal(response_status_d) >= 300 and toreal(response_status_d) < 400, \"3xx Response\",\n    toreal(response_status_d) >= 400 and toreal(response_status_d) < 406, \"4xx Response\",\n    toreal(response_status_d) >= 406 and toreal(response_status_d) < 420, \"WAF Block\",\n    toreal(response_status_d) >= 421 and toreal(response_status_d) < 500, \"4xx Response\", \"other\")\n| where status_group in (\"WAF Block\", \"4xx Response\", \"2xx Response\")\n// 4 Hour Average Count\n| where TimeGenerated >= ago(5h) and TimeGenerated < startofday(now()) + datetime_part(\"hour\", now()) * 1h\n| summarize avg_4h_count = round(toreal(count()) / 4, 2) by status_group\n| join kind=inner (\n    // Last Full Hour Count\n    Fastly_CL\n    | extend status_group = case(\n        toreal(response_status_d) >= 200 and toreal(response_status_d) < 300, \"2xx Response\",\n        toreal(response_status_d) >= 300 and toreal(response_status_d) < 400, \"3xx Response\",\n        toreal(response_status_d) >= 400 and toreal(response_status_d) < 406, \"4xx Response\",\n        toreal(response_status_d) >= 406 and toreal(response_status_d) < 420, \"WAF Block\",\n        toreal(response_status_d) >= 421 and toreal(response_status_d) < 500, \"4xx Response\", \"other\")\n    | where TimeGenerated >= startofday(now()) + datetime_part(\"hour\", now()) * 1h - 2h and TimeGenerated < startofday(now()) + datetime_part(\"hour\", now()) * 1h - 1h\n    | summarize past_hour_count = round(toreal(count()), 2) by status_group) on status_group\n// Calculate Percentage Change\n| extend percent_change = case(\n    avg_4h_count > 0, round(((past_hour_count - avg_4h_count) / avg_4h_count) * 100.0, 2),\n    avg_4h_count == 0 and past_hour_count > 0, 100.0, 0.0)\n// Identify Significant Spikes\n| extend is_spike = abs(percent_change) > 50.0\n| extend is_significant_spike = abs(percent_change) > 75.0\n| project status_group, past_hour_count, avg_4h_count, percent_change, is_spike, is_significant_spike\n| where percent_change >= 75 \n| order by percent_change desc\n",
+                "queryFrequency": "PT1H",
+                "queryPeriod": "PT5H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 1,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "Impact"
+                ],
+                "techniques": [],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDynamicProperties": []
+                },
+                "customDetails": {},
+                "entityMappings": null,
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}
