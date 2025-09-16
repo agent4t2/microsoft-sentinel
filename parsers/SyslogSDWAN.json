@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-08-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "Workspace": {
+      "type": "string",
+      "metadata": {
+        "description": "The Microsoft Sentinel workspace into which the function will be deployed."
+      }
+    },
+    "WorkspaceRegion": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "The region of the selected workspace."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('Workspace'), '/SyslogSDWAN')]",
+      "location": "[parameters('WorkspaceRegion')]",
+      "properties": {
+        "etag": "*",
+        "displayName": "Syslog SDWAN Parser",
+        "category": "Parser",
+        "FunctionAlias": "SyslogSDWAN",
+        "query": "Syslog\n| where Computer startswith \"<SDWAN-PREFIX>\" or Computer startswith \"10.\"\n| where Computer !startswith \"<INTERNAL-RANGE-1>\" and Computer !startswith \"<INTERNAL-RANGE-2>\" and Computer !startswith \"<INTERNAL-RANGE-3>\" and Computer !startswith \"<INTERNAL-RANGE-4>\" and Computer !startswith \"<INTERNAL-RANGE-5>\"\n| extend isKVFormat = SyslogMessage startswith \"ION_HOST=\"\n| extend Fields = iff(isKVFormat, dynamic([]), split(SyslogMessage, \",\"))\n| extend\n    ION_HOST = iff(isKVFormat, extract(\"ION_HOST=\\\"([^\\\"]+)\\\"\", 1, SyslogMessage), \"\"),\n    DEVICE_TIME = iff(isKVFormat, extract(\"DEVICE_TIME=\\\"([^\\\"]+)\\\"\", 1, SyslogMessage), \"\"),\n    MSG = iff(isKVFormat, extract(\"MSG=\\\"([^\\\"]+)\\\"\", 1, SyslogMessage), \"\"),\n    KV_SEVERITY = iff(isKVFormat, extract(\"SEVERITY=\\\"([^\\\"]+)\\\"\", 1, SyslogMessage), \"\"),\n    KV_PROCESS_NAME = iff(isKVFormat, extract(\"PROCESS_NAME=\\\"([^\\\"]+)\\\"\", 1, SyslogMessage), \"\"),\n    KV_FACILITY = iff(isKVFormat, extract(\"FACILITY=\\\"([^\\\"]+)\\\"\", 1, SyslogMessage), \"\"),\n    ELEMENT_ID = iff(isKVFormat, extract(\"ELEMENT_ID=\\\"([^\\\"]+)\\\"\", 1, SyslogMessage), \"\"),\n    MsgTimestamp = iff(isKVFormat, \"\", tostring(Fields[0])),\n    SrcIP = iff(isKVFormat, \"\", tostring(Fields[1])),\n    SrcPort = iff(isKVFormat, \"\", tostring(Fields[2])),\n    DstIP = iff(isKVFormat, \"\", tostring(Fields[3])),\n    DstPort = iff(isKVFormat, \"\", tostring(Fields[4])),\n    Protocol = iff(isKVFormat, \"\", tostring(Fields[5])),\n    SrcZone = iff(isKVFormat, \"\", tostring(Fields[12])),\n    DstZone = iff(isKVFormat, \"\", tostring(Fields[13])),\n    App = iff(isKVFormat, \"\", tostring(Fields[14])),\n    AppCategory = iff(isKVFormat, \"\", tostring(Fields[15])),\n    Description = iff(isKVFormat, \"\", tostring(Fields[16]))\n| extend Computer = iff(isKVFormat and Computer startswith \"10.\", ION_HOST, Computer)\n| project TimeGenerated, Computer, EventTimeUTC = EventTime, HostName, HostIP, Type,\n          SeverityLevel, ProcessID, ProcessName, CollectorHostName,\n          ION_HOST, DEVICE_TIME, MSG, KV_SEVERITY, KV_PROCESS_NAME, KV_FACILITY, ELEMENT_ID,\n          MsgTimestamp, SrcIP, SrcPort, DstIP, DstPort, Protocol,\n          SrcZone, DstZone, App, AppCategory, Description, SyslogMessage",
+        "version": 1,
+        "functionParameters": ""
+      }
+    }
+  ]
+}
