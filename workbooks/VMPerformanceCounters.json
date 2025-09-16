@@ -1,0 +1,56 @@
+{
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workbookDisplayName": {
+      "type": "string",
+      "defaultValue": "TS - VM Performance Counters",
+      "metadata": {
+        "description": "The friendly name for the workbook that is used in the Gallery or Saved List. Must be unique within a resource group."
+      }
+    },
+    "workbookType": {
+      "type": "string",
+      "defaultValue": "sentinel",
+      "metadata": {
+        "description": "The gallery category for the workbook (e.g., workbook, sentinel, tsg)."
+      }
+    },
+    "workbookSourceId": {
+      "type": "string",
+      "defaultValue": "/subscriptions/<SUBSCRIPTION-ID>/resourcegroups/<RESOURCE-GROUP>/providers/microsoft.operationalinsights/workspaces/<WORKSPACE-NAME>",
+      "metadata": {
+        "description": "The resource ID of the workspace this workbook will be associated with."
+      }
+    },
+    "workbookId": {
+      "type": "string",
+      "defaultValue": "<WORKBOOK-GUID>",
+      "metadata": {
+        "description": "The unique GUID for this workbook instance."
+      }
+    }
+  },
+  "resources": [
+    {
+      "name": "[parameters('workbookId')]",
+      "type": "microsoft.insights/workbooks",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2022-04-01",
+      "kind": "shared",
+      "properties": {
+        "displayName": "[parameters('workbookDisplayName')]",
+        "serializedData": "{\"version\":\"Notebook/1.0\",\"items\":[ ... ],\"isLocked\":false,\"fallbackResourceIds\":[\"/subscriptions/<SUBSCRIPTION-ID>/resourcegroups/<RESOURCE-GROUP>/providers/microsoft.operationalinsights/workspaces/<WORKSPACE-NAME>\"],\"fromTemplateId\":\"sentinel-UserWorkbook\"}",
+        "version": "1.0",
+        "sourceId": "[parameters('workbookSourceId')]",
+        "category": "[parameters('workbookType')]"
+      }
+    }
+  ],
+  "outputs": {
+    "workbookId": {
+      "type": "string",
+      "value": "[resourceId('microsoft.insights/workbooks', parameters('workbookId'))]"
+    }
+  },
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#"
+}
