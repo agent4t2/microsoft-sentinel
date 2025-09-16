@@ -1,0 +1,1858 @@
+{
+  "definition": {
+    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion": "1.0.0.0",
+    "triggers": {
+      "Microsoft_Sentinel_incident": {
+        "type": "ApiConnectionWebhook",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+            }
+          },
+          "body": {
+            "callback_url": "@{listCallbackUrl()}"
+          },
+          "path": "/incident-creation"
+        }
+      }
+    },
+    "actions": {
+      "Entities_-_Get_IPs": {
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+            }
+          },
+          "method": "post",
+          "body": "@triggerBody()?['object']?['properties']?['relatedEntities']",
+          "path": "/entities/ip"
+        },
+        "runAfter": {
+          "For_Each_-_Existing_IP": [
+            "Succeeded"
+          ]
+        }
+      },
+      "For_Each_-_Existing_IP": {
+        "type": "Foreach",
+        "foreach": "@body('Parse_JSON')?['ipRanges']",
+        "actions": {
+          "Append_to_string_variable": {
+            "type": "AppendToStringVariable",
+            "inputs": {
+              "name": "Json Body",
+              "value": "\n@{items('For_Each_-_Existing_IP')},\n"
+            }
+          }
+        },
+        "runAfter": {
+          "Initialize_Variable_-_JSON_Body": [
+            "Succeeded"
+          ]
+        }
+      },
+      "HTTP_-_Get_Previous_List_Values": {
+        "type": "Http",
+        "description": "PATCH (and also PUT) method has been observed to overwrite an entire existing list with new values, and POST is not accepted at this endpoint. This GET step is necessary top preserve the preexisting values.",
+        "inputs": {
+          "uri": "https://graph.microsoft.com/v1.0/identity/conditionalAccess/namedLocations/@{parameters('Named_Location_GUID')}",
+          "method": "GET",
+          "authentication": {
+            "type": "ActiveDirectoryOAuth",
+            "authority": "",
+            "tenant": "@{parameters('Tenant_ID')}",
+            "audience": "https://graph.microsoft.com",
+            "clientId": "@{parameters('Client_ID')}",
+            "secret": "@{body('Get_Named_Location_Secret')?['value']}"
+          }
+        },
+        "runAfter": {
+          "Get_SigSci_API_Token": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Initialize_Variable_-_JSON_Body": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            {
+              "name": "Json Body",
+              "type": "string",
+              "value": "{\n\"@odata.type\": \"#microsoft.graph.ipNamedLocation\",\n\"displayName\": \"Sentinel-IP-Block\",\n\"isTrusted\": false,\n \"ipRanges\": ["
+            }
+          ]
+        },
+        "runAfter": {
+          "Parse_JSON": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Initialize_variable_-_IP_address": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            {
+              "name": "IPAddresses",
+              "type": "string"
+            }
+          ]
+        },
+        "runAfter": {}
+      },
+      "Parse_JSON": {
+        "type": "ParseJson",
+        "inputs": {
+          "content": "@body('HTTP_-_Get_Previous_List_Values')",
+          "schema": {
+            "properties": {
+              "@@odata.context": {
+                "type": "string"
+              },
+              "@@odata.type": {
+                "type": "string"
+              },
+              "createdDateTime": {
+                "type": "string"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "ipRanges": {
+                "items": {
+                  "properties": {
+                    "@@odata.type": {
+                      "type": "string"
+                    },
+                    "cidrAddress": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "@@odata.type",
+                    "cidrAddress"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "isTrusted": {
+                "type": "boolean"
+              },
+              "modifiedDateTime": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "runAfter": {
+          "HTTP_-_Get_Previous_List_Values": [
+            "Succeeded"
+          ]
+        }
+      },
+      "For_each_Append_Blocklist": {
+        "type": "Foreach",
+        "foreach": "@body('Entities_-_Get_IPs')?['IPs']",
+        "actions": {
+          "Condition_-_Incident_Contains_Actionable_IPs": {
+            "type": "If",
+            "expression": {
+              "and": [
+                {
+                  "greater": [
+                    "@length(body('Entities_-_Get_IPs')?['IPs'])",
+                    0
+                  ]
+                },
+                {
+                  "not": {
+                    "startsWith": [
+                      "@item()?['Address']",
+                      "203.0.113."
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "startsWith": [
+                      "@item()?['Address']",
+                      "198.51.100."
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "startsWith": [
+                      "@item()?['Address']",
+                      "192.0.2."
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "startsWith": [
+                      "@item()?['Address']",
+                      "10.10.10."
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "startsWith": [
+                      "@item()?['Address']",
+                      "172.16.100."
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "startsWith": [
+                      "@item()?['Address']",
+                      "192.168.50."
+                    ]
+                  }
+                },
+                {
+                  "equals": [
+                    "",
+                    ""
+                  ]
+                }
+              ]
+            },
+            "actions": {
+              "HTTP-_Add_IP_to_Named_Locations_List": {
+                "type": "Http",
+                "inputs": {
+                  "uri": "https://graph.microsoft.com/v1.0/identity/conditionalAccess/namedLocations/@{parameters('Named_Location_GUID')}",
+                  "method": "PATCH",
+                  "headers": {
+                    "Content-type": "application/json"
+                  },
+                  "body": "@concat(substring(variables('Json Body'), 0, lastIndexOf(variables('Json Body'), ',')), decodeUriComponent('%0A'),']', decodeUriComponent('%0A'), '}')",
+                  "authentication": {
+                    "type": "ActiveDirectoryOAuth",
+                    "authority": "",
+                    "tenant": "@{parameters('Tenant_ID')}",
+                    "audience": "https://graph.microsoft.com",
+                    "clientId": "@{parameters('Client_ID')}",
+                    "secret": "@{body('Get_Named_Location_Secret')?['value']}"
+                  }
+                },
+                "runAfter": {
+                  "For_Each_-_Incident_IP": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "For_Each_-_Incident_IP": {
+                "type": "Foreach",
+                "foreach": "@body('Entities_-_Get_IPs')?['IPs']",
+                "actions": {
+                  "Condition_-_Not_Trusted_IP": {
+                    "type": "If",
+                    "expression": {
+                      "not": {
+                        "contains": [
+                          "@outputs('Compose_TrustedIP_Array')",
+                          "@items('For_Each_-_Incident_IP')?['Address']"
+                        ]
+                      }
+                    },
+                    "actions": {
+                      "Get_IPScore_Array": {
+                        "type": "Query",
+                        "inputs": {
+                          "from": "@body('Select_IP_and_Score')",
+                          "where": "@equals(item()?['IPADDRESS'],items('For_Each_-_Incident_IP')?['Address'])"
+                        }
+                      },
+                      "Compose_Get_Score": {
+                        "type": "Compose",
+                        "inputs": "@if(\n    and(\n        not(empty(body('Get_IPScore_Array'))),\n        not(empty(body('Get_IPScore_Array')[0]['SCORE']))\n    ),\n    body('Get_IPScore_Array')[0]['SCORE'],\n    0\n)\n",
+                        "runAfter": {
+                          "Display_Array_Results": [
+                            "Succeeded"
+                          ]
+                        }
+                      },
+                      "Display_Array_Results": {
+                        "type": "Compose",
+                        "inputs": "@body('Get_IPScore_Array')\n",
+                        "runAfter": {
+                          "Get_IPScore_Array": [
+                            "Succeeded"
+                          ]
+                        }
+                      },
+                      "Condition_Above_Risk_Threshold": {
+                        "type": "If",
+                        "expression": {
+                          "and": [
+                            {
+                              "greaterOrEquals": [
+                                "@outputs('Trim_and_Convert')",
+                                "@parameters('Risk_Score_Threshold')"
+                              ]
+                            }
+                          ]
+                        },
+                        "actions": {
+                          "Append_to_String_Variable_-_JSON_Body": {
+                            "type": "AppendToStringVariable",
+                            "inputs": {
+                              "name": "Json Body",
+                              "value": " \n{\n         \"@odata.type\": \"#microsoft.graph.iPv4CidrRange\",\n          \"cidrAddress\": \"@{concat(items('For_Each_-_Incident_IP')?['Address'], '/32')}\"\n },"
+                            }
+                          },
+                          "Append_to_string_variable_-_AppendedIPs": {
+                            "type": "AppendToStringVariable",
+                            "inputs": {
+                              "name": "AppendedIPs",
+                              "value": "@concat(items('For_Each_-_Incident_IP')?['Address'],' ')"
+                            },
+                            "runAfter": {
+                              "Append_to_String_Variable_-_JSON_Body": [
+                                "Succeeded"
+                              ]
+                            }
+                          },
+                          "Append_to_PAN-OS-Blocklist": {
+                            "type": "AppendToArrayVariable",
+                            "inputs": {
+                              "name": "PAN-OS-BlockedIP",
+                              "value": "@concat(items('For_Each_-_Incident_IP')?['Address'])"
+                            },
+                            "runAfter": {
+                              "Append_to_String_Variable_-_JSON_Body": [
+                                "Succeeded"
+                              ]
+                            }
+                          }
+                        },
+                        "else": {
+                          "actions": {}
+                        },
+                        "runAfter": {
+                          "Trim_and_Convert": [
+                            "Succeeded"
+                          ]
+                        }
+                      },
+                      "Trim_and_Convert": {
+                        "type": "Compose",
+                        "inputs": "@int(trim(coalesce(outputs('Force_to_String'), '0')))",
+                        "runAfter": {
+                          "Force_to_String": [
+                            "Succeeded"
+                          ]
+                        }
+                      },
+                      "Force_to_String": {
+                        "type": "Compose",
+                        "inputs": "@string(outputs('Compose_Get_Score'))",
+                        "runAfter": {
+                          "Compose_Get_Score": [
+                            "Succeeded"
+                          ]
+                        }
+                      }
+                    },
+                    "else": {
+                      "actions": {}
+                    }
+                  }
+                },
+                "runAfter": {
+                  "Block_In_Conditional_Access": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "Block_In_Conditional_Access": {
+                "type": "Compose",
+                "inputs": "@outputs('Display_Score_Array')"
+              }
+            },
+            "else": {
+              "actions": {}
+            }
+          }
+        },
+        "runAfter": {
+          "Compose_Formatted_IPScores": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Watchlists_-_Get_all_Watchlist_Items_GP_Gateways": {
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+            }
+          },
+          "method": "get",
+          "path": "/V2/Watchlists/subscriptions/@{encodeURIComponent('<SUBSCRIPTION-ID>')}/resourceGroups/@{encodeURIComponent('<RESOURCE-GROUP>')}/workspaces/@{encodeURIComponent('<WORKSPACE-ID>')}/watchlists/@{encodeURIComponent('gpgateway')}/watchlistItems/",
+          "queries": {
+            "skipToken": ""
+          }
+        },
+        "runAfter": {
+          "For_each_permittedscanner": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Parse_JSON_Watchlist_GP": {
+        "type": "ParseJson",
+        "inputs": {
+          "content": "@body('Watchlists_-_Get_all_Watchlist_Items_GP_Gateways')",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "properties": {
+                "type": "object",
+                "properties": {
+                  "watchlistItems": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "properties.watchlistItemType": {
+                          "type": "string"
+                        },
+                        "properties.watchlistItemId": {
+                          "type": "string"
+                        },
+                        "properties.tenantId": {
+                          "type": "string"
+                        },
+                        "properties.isDeleted": {
+                          "type": "boolean"
+                        },
+                        "properties.created": {
+                          "type": "string"
+                        },
+                        "properties.updated": {
+                          "type": "string"
+                        },
+                        "properties.createdBy": {
+                          "type": "object",
+                          "properties": {
+                            "email": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "objectId": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "properties.updatedBy": {
+                          "type": "object",
+                          "properties": {
+                            "email": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "objectId": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "properties.itemsKeyValue": {
+                          "type": "object",
+                          "properties": {
+                            "GPGatewayIP": {
+                              "type": "string"
+                            },
+                            "GPGatewayRegion": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "properties.entityMapping": {
+                          "type": "object",
+                          "properties": {}
+                        },
+                        "etag": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        },
+                        "systemData": {
+                          "type": "object",
+                          "properties": {
+                            "createdBy": {
+                              "type": "string"
+                            },
+                            "createdByType": {
+                              "type": "string"
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            },
+                            "lastModifiedBy": {
+                              "type": "string"
+                            },
+                            "lastModifiedByType": {
+                              "type": "string"
+                            },
+                            "lastModifiedAt": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "required": [
+                        "properties.watchlistItemType",
+                        "properties.watchlistItemId",
+                        "properties.tenantId",
+                        "properties.isDeleted",
+                        "properties.created",
+                        "properties.updated",
+                        "properties.createdBy",
+                        "properties.updatedBy",
+                        "properties.itemsKeyValue",
+                        "properties.entityMapping",
+                        "etag",
+                        "id",
+                        "name",
+                        "type",
+                        "systemData"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "runAfter": {
+          "Watchlists_-_Get_all_Watchlist_Items_GP_Gateways": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Watchlists_-_Get_all_Watchlist_Items_for_Public_Sites": {
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+            }
+          },
+          "method": "get",
+          "path": "/V2/Watchlists/subscriptions/@{encodeURIComponent('<SUBSCRIPTION-ID>')}/resourceGroups/@{encodeURIComponent('<RESOURCE-GROUP>')}/workspaces/@{encodeURIComponent('<WORKSPACE-ID>')}/watchlists/@{encodeURIComponent('sitepubip')}/watchlistItems/",
+          "queries": {
+            "skipToken": ""
+          }
+        },
+        "runAfter": {
+          "For_each_GP_Watchlist_Item": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Parse_JSON_Public_Sites": {
+        "type": "ParseJson",
+        "inputs": {
+          "content": "@body('Watchlists_-_Get_all_Watchlist_Items_for_Public_Sites')",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "properties": {
+                "type": "object",
+                "properties": {
+                  "watchlistItems": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "properties.watchlistItemType": {
+                          "type": "string"
+                        },
+                        "properties.watchlistItemId": {
+                          "type": "string"
+                        },
+                        "properties.tenantId": {
+                          "type": "string"
+                        },
+                        "properties.isDeleted": {
+                          "type": "boolean"
+                        },
+                        "properties.created": {
+                          "type": "string"
+                        },
+                        "properties.updated": {
+                          "type": "string"
+                        },
+                        "properties.createdBy": {
+                          "type": "object",
+                          "properties": {
+                            "email": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "objectId": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "properties.updatedBy": {
+                          "type": "object",
+                          "properties": {
+                            "email": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "objectId": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "properties.itemsKeyValue": {
+                          "type": "object",
+                          "properties": {
+                            "SitePublicIP": {
+                              "type": "string"
+                            },
+                            "SiteName": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "properties.entityMapping": {
+                          "type": "object",
+                          "properties": {}
+                        },
+                        "etag": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        },
+                        "systemData": {
+                          "type": "object",
+                          "properties": {
+                            "createdBy": {
+                              "type": "string"
+                            },
+                            "createdByType": {
+                              "type": "string"
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            },
+                            "lastModifiedBy": {
+                              "type": "string"
+                            },
+                            "lastModifiedByType": {
+                              "type": "string"
+                            },
+                            "lastModifiedAt": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "required": [
+                        "properties.watchlistItemType",
+                        "properties.watchlistItemId",
+                        "properties.tenantId",
+                        "properties.isDeleted",
+                        "properties.created",
+                        "properties.updated",
+                        "properties.createdBy",
+                        "properties.updatedBy",
+                        "properties.itemsKeyValue",
+                        "properties.entityMapping",
+                        "etag",
+                        "id",
+                        "name",
+                        "type",
+                        "systemData"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "runAfter": {
+          "Watchlists_-_Get_all_Watchlist_Items_for_Public_Sites": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Initialize_variable_-_TrustedIPs": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            {
+              "name": "TrustedIPs",
+              "type": "string"
+            }
+          ]
+        },
+        "runAfter": {
+          "Initialize_Array_PAN-OS-BlockedIP": [
+            "Succeeded"
+          ]
+        }
+      },
+      "For_each_GP_Watchlist_Item": {
+        "type": "Foreach",
+        "foreach": "@body('Parse_JSON_Watchlist_GP')?['properties']?['watchlistItems']",
+        "actions": {
+          "Append_to_TrustedIPs_1": {
+            "type": "AppendToStringVariable",
+            "inputs": {
+              "name": "TrustedIPs",
+              "value": "@concat(item()?['properties.itemsKeyValue']?['GPGatewayIP'],' ')"
+            }
+          }
+        },
+        "runAfter": {
+          "Parse_JSON_Watchlist_GP": [
+            "Succeeded"
+          ]
+        }
+      },
+      "For_each_Site_Watchlist_Item": {
+        "type": "Foreach",
+        "foreach": "@body('Parse_JSON_Public_Sites')?['properties']?['watchlistItems']",
+        "actions": {
+          "Append_to_TrustedIPs_2": {
+            "type": "AppendToStringVariable",
+            "inputs": {
+              "name": "TrustedIPs",
+              "value": "@concat(item()?['properties.itemsKeyValue']?['SitePublicIP'],' ')"
+            }
+          }
+        },
+        "runAfter": {
+          "Parse_JSON_Public_Sites": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Compose_TrustedIPs": {
+        "type": "Compose",
+        "inputs": "@variables('TrustedIPs')",
+        "runAfter": {
+          "For_each_Site_Watchlist_Item": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Compose_TrustedIP_Array": {
+        "type": "Compose",
+        "inputs": "@split(outputs('Compose_TrustedIPs'), ' ')",
+        "runAfter": {
+          "Compose_TrustedIPs": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Compose_AppendedIPs": {
+        "type": "Compose",
+        "inputs": "@variables('AppendedIPs')",
+        "runAfter": {
+          "For_each_Append_Blocklist": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Compose_Split_AppendedIPs": {
+        "type": "Compose",
+        "inputs": "@split(variables('AppendedIPs'), ' ')\n",
+        "runAfter": {
+          "Compose_AppendedIPs": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Compose_Remove_Duplicates": {
+        "type": "Compose",
+        "inputs": "@union(outputs('Compose_Split_AppendedIPs'), outputs('Compose_Split_AppendedIPs'))",
+        "runAfter": {
+          "Compose_Split_AppendedIPs": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Compose_Join_AppendedIPs": {
+        "type": "Compose",
+        "inputs": "@join(outputs('Compose_Remove_Duplicates'), '<br>')\n",
+        "runAfter": {
+          "Send_Email_Notification": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Initialize_variable_-_Appended_IPs": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            {
+              "name": "AppendedIPs",
+              "type": "string"
+            }
+          ]
+        },
+        "runAfter": {
+          "Initialize_variable_-_TrustedIPs": [
+            "Succeeded"
+          ]
+        }
+      },
+      "AppendedIPs_has_Output": {
+        "type": "If",
+        "expression": {
+          "and": [
+            {
+              "contains": [
+                "@variables('AppendedIPs')",
+                "."
+              ]
+            }
+          ]
+        },
+        "actions": {
+          "Send_an_email_(V2)": {
+            "type": "ApiConnection",
+            "inputs": {
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['office365']['connectionId']"
+                }
+              },
+              "method": "post",
+              "body": {
+                "To": "@parameters('Mail_To')",
+                "Subject": "IP Address has been added to Sentinel-IP-Blocklist",
+                "Body": "<p class=\"editor-paragraph\">The following IP Addresses have been added to the Sentinel IP Blocklist:<br>@{outputs('Compose_Join_AppendedIPs')}<br>Sentinel Incident: @{triggerBody()?['object']?['properties']?['incidentNumber']}</p><p class=\"editor-paragraph\">Severity: @{triggerBody()?['object']?['properties']?['severity']}</p><p class=\"editor-paragraph\">Incident URL: @{triggerBody()?['object']?['properties']?['incidentUrl']}<br></p><br><p class=\"editor-paragraph\">Recorded Future Risk Scores:</p><p class=\"editor-paragraph\">@{outputs('Display_Score_Array')}</p>",
+                "Importance": "Normal"
+              },
+              "path": "/v2/Mail"
+            }
+          }
+        },
+        "else": {
+          "actions": {}
+        },
+        "runAfter": {
+          "Compose_Join_AppendedIPs": [
+            "Succeeded"
+          ]
+        }
+      },
+      "For_each_-_Enrich_IP": {
+        "type": "Foreach",
+        "foreach": "@body('Entities_-_Get_IPs')?['IPs']",
+        "actions": {
+          "IP_Enrichment": {
+            "type": "ApiConnection",
+            "inputs": {
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['recordedfuturev2']['connectionId']"
+                }
+              },
+              "method": "get",
+              "path": "/lookup/ip/@{encodeURIComponent(item()?['Address'])}",
+              "queries": {
+                "fields": "intelCard,risk,links",
+                "htmlresponse": false
+              }
+            }
+          },
+          "For_each": {
+            "type": "Foreach",
+            "foreach": "@body('IP_Enrichment')?['data']?['risk']?['evidenceDetails']",
+            "actions": {
+              "Append_to_array_variable": {
+                "type": "AppendToArrayVariable",
+                "inputs": {
+                  "name": "IPScores",
+                  "value": "@concat(body('IP_Enrichment')?['data']?['intelCard'],',',body('IP_Enrichment')?['data']?['risk']?['score'])"
+                }
+              }
+            },
+            "runAfter": {
+              "IP_Enrichment": [
+                "Succeeded"
+              ]
+            }
+          }
+        },
+        "runAfter": {
+          "Entities_-_Get_IPs": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Initialize_variable_-_IPScores": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            {
+              "name": "IPScores",
+              "type": "array",
+              "value": [
+                "https://app.recordedfuture.com/portal/intelligence-card/ip%3A0.0.0.0,0"
+              ]
+            }
+          ]
+        },
+        "runAfter": {
+          "Initialize_variable_-_IP_address": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Compose_IPScores": {
+        "type": "Compose",
+        "inputs": "@join(variables('IPScores'), '\\n')\n",
+        "runAfter": {
+          "For_each_-_Enrich_IP": [
+            "Succeeded",
+            "Skipped",
+            "Failed",
+            "TimedOut"
+          ]
+        }
+      },
+      "Compose_Split_IPScores": {
+        "type": "Compose",
+        "inputs": "@split(outputs('Compose_IPScores'), '\\n')\n",
+        "runAfter": {
+          "Compose_IPScores": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Compose_DeDupe_IPScores": {
+        "type": "Compose",
+        "inputs": "@union(outputs('Compose_Split_IPScores'), outputs('Compose_Split_IPScores'))\n",
+        "runAfter": {
+          "Compose_Split_IPScores": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Compose_Formatted_IPScores": {
+        "type": "Compose",
+        "inputs": "@join(outputs('Compose_DeDupe_IPScores'), decodeUriComponent('%0A'))\n",
+        "runAfter": {
+          "Display_Score_Array": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Select_IP_and_Score": {
+        "type": "Select",
+        "inputs": {
+          "from": "@outputs('Compose_DeDupe_IPScores')",
+          "select": {
+            "IPADDRESS": "@substring(split(item(), '%3A')[1], 0, indexOf(split(item(), '%3A')[1], ','))\n",
+            "SCORE": "@split(item(), ',')[1]\n"
+          }
+        },
+        "runAfter": {
+          "Compose_DeDupe_IPScores": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Display_Score_Array": {
+        "type": "Compose",
+        "inputs": "@body('Select_IP_and_Score')",
+        "runAfter": {
+          "Select_IP_and_Score": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Entities_-_Get_Accounts": {
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['azuresentinel_incident']['connectionId']"
+            }
+          },
+          "method": "post",
+          "body": "@triggerBody()?['object']?['properties']?['relatedEntities']",
+          "path": "/entities/account"
+        },
+        "runAfter": {
+          "Initialize_variable_-_Appended_IPs": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Initialize_Array_PAN-OS-BlockedIP": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            {
+              "name": "PAN-OS-BlockedIP",
+              "type": "array"
+            }
+          ]
+        },
+        "runAfter": {
+          "Initialize_variable_-_IPScores": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Compose_PAN-OS-BlockedIP": {
+        "type": "Compose",
+        "inputs": "@variables('PAN-OS-BlockedIP')",
+        "runAfter": {
+          "Initialize_variable_PanBlockIP": [
+            "Succeeded"
+          ]
+        }
+      },
+      "PAN-OS-BlockedIP_has_Outbput": {
+        "type": "If",
+        "expression": {
+          "and": [
+            {
+              "greater": [
+                "@outputs('Compose_PANOSBlocklistLength')",
+                0
+              ]
+            }
+          ]
+        },
+        "actions": {
+          "DeduplicateBlocklist": {
+            "type": "Compose",
+            "inputs": "@union(variables('PAN-OS-BlockedIP'), variables('PAN-OS-BlockedIP'))"
+          },
+          "Get_blob_content": {
+            "type": "ApiConnection",
+            "inputs": {
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['azureblob']['connectionId']"
+                }
+              },
+              "method": "get",
+              "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent('AccountNameFromSettings'))}/files/@{encodeURIComponent(encodeURIComponent('JTJmaXBsaXN0cyUyZnNlbnRpbmVsLWJsb2NrbGlzdC50eHQ='))}/content",
+              "queries": {
+                "inferContentType": true
+              }
+            },
+            "runAfter": {
+              "DeduplicateBlocklist": [
+                "Succeeded"
+              ]
+            },
+            "metadata": {
+              "JTJmaXBsaXN0cyUyZnNlbnRpbmVsLWJsb2NrbGlzdC50eHQ=": "/iplists/sentinel-blocklist.txt"
+            }
+          },
+          "For_each_PanBlockedIP": {
+            "type": "Foreach",
+            "foreach": "@outputs('DeduplicateBlocklist')",
+            "actions": {
+              "Append_to_PanBlockIP": {
+                "type": "AppendToStringVariable",
+                "inputs": {
+                  "name": "PanBlockIP",
+                  "value": "@{items('For_each_PanBlockedIP')} ## Sentinel Incident @{triggerBody()?['object']?['properties']?['incidentNumber']} - Score: @{outputs('Compose_Score')}/99 - @{convertTimeZone(utcNow(), 'UTC', 'Eastern Standard Time', 'yyyy-MM-dd hh:mm:ss tt')} ##\n"
+                },
+                "runAfter": {
+                  "Compose_Score": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "Compose_Score": {
+                "type": "Compose",
+                "inputs": "@coalesce(first(outputs('Filter_Score_In_Loop')?['body'])?['Score'], '0')\n",
+                "runAfter": {
+                  "Filter_Score_In_Loop": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "Filter_Score_In_Loop": {
+                "type": "Query",
+                "inputs": {
+                  "from": "@json(outputs('Compose_IP_Score_Array'))['body']\n",
+                  "where": "@equals(item()?['IP'],items('For_each_PanBlockedIP'))"
+                }
+              }
+            },
+            "runAfter": {
+              "Compose_IP_Score_Array": [
+                "Succeeded"
+              ]
+            }
+          },
+          "Compose_PanBlockIP": {
+            "type": "Compose",
+            "inputs": "@variables('PanBlockIP')",
+            "runAfter": {
+              "For_each_PanBlockedIP": [
+                "Succeeded"
+              ]
+            }
+          },
+          "Update_sentinel-blocklist.txt": {
+            "type": "ApiConnection",
+            "inputs": {
+              "host": {
+                "connection": {
+                  "name": "@parameters('$connections')['azureblob']['connectionId']"
+                }
+              },
+              "method": "put",
+              "body": "@join(union(split(trim(body('Get_blob_content')), decodeUriComponent('%0A')),split(trim(variables('PanBlockIP')), decodeUriComponent('%0A'))),decodeUriComponent('%0A'))",
+              "headers": {
+                "ReadFileMetadataFromServer": true
+              },
+              "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent('AccountNameFromSettings'))}/files/@{encodeURIComponent(encodeURIComponent('JTJmaXBsaXN0cyUyZnNlbnRpbmVsLWJsb2NrbGlzdC50eHQ='))}"
+            },
+            "runAfter": {
+              "Compose_PanBlockIP": [
+                "Succeeded"
+              ]
+            },
+            "metadata": {
+              "JTJmaXBsaXN0cyUyZnNlbnRpbmVsLWJsb2NrbGlzdC50eHQ=": "/iplists/sentinel-blocklist.txt"
+            }
+          },
+          "Select_IP_and_Score_Clean": {
+            "type": "Select",
+            "inputs": {
+              "from": "@outputs('Compose_DeDupe_IPScores')",
+              "select": {
+                "IP": "@substring(split(last(split(item(),'ip%3A')),',')[0],0)\n",
+                "Score": "@last(split(item(), ','))\n"
+              }
+            },
+            "runAfter": {
+              "Get_blob_content": [
+                "Succeeded"
+              ]
+            }
+          },
+          "Compose_IP_Score_Array": {
+            "type": "Compose",
+            "inputs": "@{outputs('Select_IP_and_Score_Clean')}\n",
+            "runAfter": {
+              "Select_IP_and_Score_Clean": [
+                "Succeeded"
+              ]
+            }
+          }
+        },
+        "else": {
+          "actions": {}
+        },
+        "runAfter": {
+          "Compose_PANOSBlocklistLength": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Initialize_variable_PanBlockIP": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            {
+              "name": "PanBlockIP",
+              "type": "string"
+            }
+          ]
+        },
+        "runAfter": {
+          "Block_in_Palo_Alto_EDL": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Compose_PANOSBlocklistLength": {
+        "type": "Compose",
+        "inputs": "@length(variables('PAN-OS-BlockedIP'))",
+        "runAfter": {
+          "Compose_PAN-OS-BlockedIP": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Watchlists_-_Get_all_Watchlist_Items_for_permittedscanners": {
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+            }
+          },
+          "method": "get",
+          "path": "/V2/Watchlists/subscriptions/@{encodeURIComponent('<SUBSCRIPTION-ID>')}/resourceGroups/@{encodeURIComponent('<RESOURCE-GROUP>')}/workspaces/@{encodeURIComponent('<WORKSPACE-ID>')}/watchlists/@{encodeURIComponent('permittedscanners')}/watchlistItems/",
+          "queries": {
+            "skipToken": ""
+          }
+        },
+        "runAfter": {
+          "Entities_-_Get_Accounts": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Parse_JSON_permittedscanners": {
+        "type": "ParseJson",
+        "inputs": {
+          "content": "@body('Watchlists_-_Get_all_Watchlist_Items_for_permittedscanners')",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "properties": {
+                "type": "object",
+                "properties": {
+                  "watchlistItems": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "properties.watchlistItemType": {
+                          "type": "string"
+                        },
+                        "properties.watchlistItemId": {
+                          "type": "string"
+                        },
+                        "properties.tenantId": {
+                          "type": "string"
+                        },
+                        "properties.isDeleted": {
+                          "type": "boolean"
+                        },
+                        "properties.created": {
+                          "type": "string"
+                        },
+                        "properties.updated": {
+                          "type": "string"
+                        },
+                        "properties.createdBy": {
+                          "type": "object",
+                          "properties": {
+                            "email": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "objectId": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "properties.updatedBy": {
+                          "type": "object",
+                          "properties": {
+                            "email": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "objectId": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "properties.itemsKeyValue": {
+                          "type": "object",
+                          "properties": {
+                            "AllowedScannerIP": {
+                              "type": "string"
+                            },
+                            "AllowedScannerCIDR": {
+                              "type": "string"
+                            },
+                            "Description": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "properties.entityMapping": {
+                          "type": "object",
+                          "properties": {}
+                        },
+                        "etag": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        },
+                        "systemData": {
+                          "type": "object",
+                          "properties": {
+                            "createdBy": {
+                              "type": "string"
+                            },
+                            "createdByType": {
+                              "type": "string"
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            },
+                            "lastModifiedBy": {
+                              "type": "string"
+                            },
+                            "lastModifiedByType": {
+                              "type": "string"
+                            },
+                            "lastModifiedAt": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "required": [
+                        "properties.watchlistItemType",
+                        "properties.watchlistItemId",
+                        "properties.tenantId",
+                        "properties.isDeleted",
+                        "properties.created",
+                        "properties.updated",
+                        "properties.createdBy",
+                        "properties.updatedBy",
+                        "properties.itemsKeyValue",
+                        "properties.entityMapping",
+                        "etag",
+                        "id",
+                        "name",
+                        "type",
+                        "systemData"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "runAfter": {
+          "Watchlists_-_Get_all_Watchlist_Items_for_permittedscanners": [
+            "Succeeded"
+          ]
+        }
+      },
+      "For_each_permittedscanner": {
+        "type": "Foreach",
+        "foreach": "@body('Parse_JSON_permittedscanners')?['properties']?['watchlistItems']",
+        "actions": {
+          "Append_to_TrustedIP_3": {
+            "type": "AppendToStringVariable",
+            "inputs": {
+              "name": "TrustedIPs",
+              "value": "@concat(item()?['properties.itemsKeyValue']?['AllowedScannerIP'],' ')"
+            }
+          }
+        },
+        "runAfter": {
+          "Parse_JSON_permittedscanners": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Initialize_variable_SigSciBlockIP": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            {
+              "name": "SigSciBlockIP",
+              "type": "string"
+            }
+          ]
+        },
+        "runAfter": {
+          "Block_in_Signal_Sciences": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Compose_PAN-OS-BlockedIP-2": {
+        "type": "Compose",
+        "inputs": "@variables('PAN-OS-BlockedIP')",
+        "runAfter": {
+          "Initialize_CorpListID_Variable": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Compose_PANOSBlocklistLength-2": {
+        "type": "Compose",
+        "inputs": "@length(variables('PAN-OS-BlockedIP'))",
+        "runAfter": {
+          "Compose_PAN-OS-BlockedIP-2": [
+            "Succeeded"
+          ]
+        }
+      },
+      "PAN-OS-BlockedIP_has_Outbput-2": {
+        "type": "If",
+        "expression": {
+          "and": [
+            {
+              "greater": [
+                "@outputs('Compose_PANOSBlocklistLength-2')",
+                0
+              ]
+            }
+          ]
+        },
+        "actions": {
+          "DeduplicateBlocklist_2": {
+            "type": "Compose",
+            "inputs": "@union(variables('PAN-OS-BlockedIP'), variables('PAN-OS-BlockedIP'))",
+            "runAfter": {
+              "Append_to_CorpListID": [
+                "Succeeded"
+              ]
+            }
+          },
+          "For_each_PanBlockedIP_2": {
+            "type": "Foreach",
+            "foreach": "@outputs('DeduplicateBlocklist_2')",
+            "actions": {
+              "Append_to_SigSciBlockIP": {
+                "type": "AppendToStringVariable",
+                "inputs": {
+                  "name": "SigSciBlockIP",
+                  "value": "@{items('For_each_PanBlockedIP_2')} #Sentinel Incident @{triggerBody()?['object']?['properties']?['incidentNumber']} - @{convertTimeZone(utcNow(), 'UTC', 'Eastern Standard Time', 'yyyy-MM-dd hh:mm:ss tt')}\n"
+                }
+              },
+              "Compose_SigSciBlockIP_2": {
+                "type": "Compose",
+                "inputs": "@variables('SigSciBlockIP')",
+                "runAfter": {
+                  "Append_to_SigSciBlockIP": [
+                    "Succeeded"
+                  ]
+                }
+              },
+              "HTTP_Append_IP_to_Block_List": {
+                "type": "Http",
+                "inputs": {
+                  "uri": "https://dashboard.signalsciences.net/api/v0/corps/<ORG_SLUG>/lists/@{variables('CorpListID')}",
+                  "method": "PATCH",
+                  "headers": {
+                    "x-api-user": "@{body('Get_SigSci_API_User')?['value']}",
+                    "x-api-token": "@{body('Get_SigSci_API_Token')?['value']}",
+                    "Content-type": "application/json"
+                  },
+                  "body": {
+                    "entries": {
+                      "additions": [
+                        "@{variables('SigSciBlockIP')}"
+                      ]
+                    }
+                  }
+                },
+                "runAfter": {
+                  "Compose_SigSciBlockIP_2": [
+                    "Succeeded"
+                  ]
+                },
+                "runtimeConfiguration": {
+                  "contentTransfer": {
+                    "transferMode": "Chunked"
+                  }
+                }
+              }
+            },
+            "runAfter": {
+              "DeduplicateBlocklist_2": [
+                "Succeeded"
+              ]
+            }
+          },
+          "HTTP_Get_Corp_Lists": {
+            "type": "Http",
+            "inputs": {
+              "uri": "https://dashboard.signalsciences.net/api/v0/corps/<ORG_SLUG>/lists",
+              "method": "GET",
+              "headers": {
+                "Content-type": "application/json",
+                "x-api-user": "@{body('Get_SigSci_API_User')?['value']}",
+                "x-api-token": "@{body('Get_SigSci_API_Token')?['value']}"
+              }
+            },
+            "runtimeConfiguration": {
+              "contentTransfer": {
+                "transferMode": "Chunked"
+              }
+            }
+          },
+          "Parse_Corp_Lists": {
+            "type": "ParseJson",
+            "inputs": {
+              "content": "@body('HTTP_Get_Corp_Lists')",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "entries": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "createdBy": {
+                          "type": "string"
+                        },
+                        "created": {
+                          "type": "string"
+                        },
+                        "updated": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "type",
+                        "description",
+                        "entries",
+                        "createdBy",
+                        "created",
+                        "updated"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "runAfter": {
+              "HTTP_Get_Corp_Lists": [
+                "Succeeded"
+              ]
+            }
+          },
+          "Compose_List_ID": {
+            "type": "Compose",
+            "inputs": "@first(body('Filter_Corp_Lists'))?['id']",
+            "runAfter": {
+              "Filter_Corp_Lists": [
+                "Succeeded"
+              ]
+            }
+          },
+          "Append_to_CorpListID": {
+            "type": "AppendToStringVariable",
+            "inputs": {
+              "name": "CorpListID",
+              "value": "@outputs('Compose_List_ID')"
+            },
+            "runAfter": {
+              "Compose_List_ID": [
+                "Succeeded"
+              ]
+            }
+          },
+          "Filter_Corp_Lists": {
+            "type": "Query",
+            "inputs": {
+              "from": "@body('Parse_Corp_Lists')?['data']",
+              "where": "@equals(item()?['name'],'sentinelblock')"
+            },
+            "runAfter": {
+              "Parse_Corp_Lists": [
+                "Succeeded"
+              ]
+            }
+          }
+        },
+        "else": {
+          "actions": {}
+        },
+        "runAfter": {
+          "Compose_PANOSBlocklistLength-2": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Send_Email_Notification": {
+        "type": "Compose",
+        "inputs": "@outputs('Compose_Remove_Duplicates')",
+        "runAfter": {
+          "Compose_Remove_Duplicates": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Block_in_Signal_Sciences": {
+        "type": "Compose",
+        "inputs": "@outputs('Compose_Remove_Duplicates')",
+        "runAfter": {
+          "Compose_Remove_Duplicates": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Block_in_Palo_Alto_EDL": {
+        "type": "Compose",
+        "inputs": "@outputs('Compose_Remove_Duplicates')",
+        "runAfter": {
+          "Compose_Remove_Duplicates": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Initialize_CorpListID_Variable": {
+        "type": "InitializeVariable",
+        "inputs": {
+          "variables": [
+            {
+              "name": "CorpListID",
+              "type": "string"
+            }
+          ]
+        },
+        "runAfter": {
+          "Initialize_variable_SigSciBlockIP": [
+            "Succeeded"
+          ]
+        }
+      },
+      "Get_SigSci_API_User": {
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['keyvault']['connectionId']"
+            }
+          },
+          "method": "get",
+          "path": "/secrets/@{encodeURIComponent('SigSci-API-Username')}/value"
+        },
+        "runAfter": {
+          "Get_Named_Location_Secret": [
+            "Succeeded"
+          ]
+        },
+        "runtimeConfiguration": {
+          "secureData": {
+            "properties": [
+              "inputs",
+              "outputs"
+            ]
+          }
+        }
+      },
+      "Get_SigSci_API_Token": {
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['keyvault']['connectionId']"
+            }
+          },
+          "method": "get",
+          "path": "/secrets/@{encodeURIComponent('SigSci-API-Token')}/value"
+        },
+        "runAfter": {
+          "Get_SigSci_API_User": [
+            "Succeeded"
+          ]
+        },
+        "runtimeConfiguration": {
+          "secureData": {
+            "properties": [
+              "inputs",
+              "outputs"
+            ]
+          }
+        }
+      },
+      "Get_Named_Location_Secret": {
+        "type": "ApiConnection",
+        "inputs": {
+          "host": {
+            "connection": {
+              "name": "@parameters('$connections')['keyvault']['connectionId']"
+            }
+          },
+          "method": "get",
+          "path": "/secrets/@{encodeURIComponent('Sentinel-IP-Block-Playbook')}/value"
+        },
+        "runAfter": {
+          "Compose_TrustedIP_Array": [
+            "Succeeded"
+          ]
+        },
+        "runtimeConfiguration": {
+          "secureData": {
+            "properties": [
+              "inputs",
+              "outputs"
+            ]
+          }
+        }
+      }
+    },
+    "outputs": {},
+    "parameters": {
+      "Tenant_ID": {
+        "defaultValue": "<TENANT-ID>",
+        "type": "String"
+      },
+      "Client_ID": {
+        "defaultValue": "<CLIENT-ID>",
+        "type": "String"
+      },
+      "Mail_To": {
+        "defaultValue": "security-alerts@example.com",
+        "type": "String"
+      },
+      "Risk_Score_Threshold": {
+        "defaultValue": 25,
+        "type": "Int"
+      },
+      "Named_Location_GUID": {
+        "defaultValue": "<NAMED-LOCATION-GUID>",
+        "type": "String"
+      },
+      "High_Risk_Threshold": {
+        "defaultValue": 50,
+        "type": "Int"
+      },
+      "$connections": {
+        "type": "Object",
+        "defaultValue": {}
+      }
+    }
+  },
+  "parameters": {
+    "$connections": {
+      "type": "Object",
+      "value": {
+        "azuresentinel": {
+          "id": "/subscriptions/<SUBSCRIPTION-ID>/providers/Microsoft.Web/locations/<LOCATION>/managedApis/azuresentinel",
+          "connectionId": "/subscriptions/<SUBSCRIPTION-ID>/resourceGroups/<RESOURCE-GROUP>/providers/Microsoft.Web/connections/azuresentinel-20",
+          "connectionName": "azuresentinel"
+        },
+        "office365": {
+          "id": "/subscriptions/<SUBSCRIPTION-ID>/providers/Microsoft.Web/locations/<LOCATION>/managedApis/office365",
+          "connectionId": "/subscriptions/<SUBSCRIPTION-ID>/resourceGroups/<RESOURCE-GROUP>/providers/Microsoft.Web/connections/office365-2",
+          "connectionName": "office365"
+        },
+        "recordedfuturev2": {
+          "id": "/subscriptions/<SUBSCRIPTION-ID>/providers/Microsoft.Web/locations/<LOCATION>/managedApis/recordedfuturev2",
+          "connectionId": "/subscriptions/<SUBSCRIPTION-ID>/resourceGroups/<RESOURCE-GROUP>/providers/Microsoft.Web/connections/recordedfuturev2-3",
+          "connectionName": "recordedfuturev2"
+        },
+        "azuresentinel_incident": {
+          "id": "/subscriptions/<SUBSCRIPTION-ID>/providers/Microsoft.Web/locations/<LOCATION>/managedApis/azuresentinel",
+          "connectionId": "/subscriptions/<SUBSCRIPTION-ID>/resourceGroups/<RESOURCE-GROUP>/providers/Microsoft.Web/connections/azuresentinel-NTX_1800_Revoke_Sessions_Incident_Trigger",
+          "connectionName": "azuresentinel-incident-trigger",
+          "connectionProperties": {
+            "authentication": {
+              "type": "ManagedServiceIdentity"
+            }
+          }
+        },
+        "azureblob": {
+          "id": "/subscriptions/<SUBSCRIPTION-ID>/providers/Microsoft.Web/locations/<LOCATION>/managedApis/azureblob",
+          "connectionId": "/subscriptions/<SUBSCRIPTION-ID>/resourceGroups/<RESOURCE-GROUP>/providers/Microsoft.Web/connections/azureblob-1",
+          "connectionName": "azureblob"
+        },
+        "keyvault": {
+          "id": "/subscriptions/<SUBSCRIPTION-ID>/providers/Microsoft.Web/locations/<LOCATION>/managedApis/keyvault",
+          "connectionId": "/subscriptions/<SUBSCRIPTION-ID>/resourceGroups/<RESOURCE-GROUP>/providers/Microsoft.Web/connections/keyvault-4",
+          "connectionName": "keyvault",
+          "connectionProperties": {
+            "authentication": {
+              "type": "ManagedServiceIdentity"
+            }
+          }
+        }
+      }
+    }
+  }
+}
