@@ -1,0 +1,56 @@
+{
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workbookDisplayName": {
+      "type": "string",
+      "defaultValue": "Oracle DBA Audit",
+      "metadata": {
+        "description": "The friendly name for the workbook that is used in the Gallery or Saved List."
+      }
+    },
+    "workbookType": {
+      "type": "string",
+      "defaultValue": "sentinel",
+      "metadata": {
+        "description": "The gallery category the workbook will appear under (e.g. workbook, sentinel, tsg)."
+      }
+    },
+    "workbookSourceId": {
+      "type": "string",
+      "defaultValue": "/subscriptions/<SUBSCRIPTION-ID>/resourcegroups/<RESOURCE-GROUP>/providers/microsoft.operationalinsights/workspaces/<WORKSPACE-NAME>",
+      "metadata": {
+        "description": "The resource ID of the workspace this workbook will be associated with."
+      }
+    },
+    "workbookId": {
+      "type": "string",
+      "defaultValue": "<WORKBOOK-GUID>",
+      "metadata": {
+        "description": "The unique guid for this workbook instance."
+      }
+    }
+  },
+  "resources": [
+    {
+      "name": "[parameters('workbookId')]",
+      "type": "microsoft.insights/workbooks",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2022-04-01",
+      "kind": "shared",
+      "properties": {
+        "displayName": "[parameters('workbookDisplayName')]",
+        "serializedData": "{\"version\":\"Notebook/1.0\",\"items\":[{\"type\":1,\"content\":{\"json\":\"Please Note: Data in this workbook is updated hourly. Use the **SQL Action Group** and **Oracle Host Group** dropdowns to filter Oracle audit activity by category.\"},\"name\":\"text - 3\"}, ... ],\"isLocked\":false,\"fallbackResourceIds\":[\"/subscriptions/<SUBSCRIPTION-ID>/resourcegroups/<RESOURCE-GROUP>/providers/microsoft.operationalinsights/workspaces/<WORKSPACE-NAME>\"],\"fromTemplateId\":\"sentinel-UserWorkbook\"}",
+        "version": "1.0",
+        "sourceId": "[parameters('workbookSourceId')]",
+        "category": "[parameters('workbookType')]"
+      }
+    }
+  ],
+  "outputs": {
+    "workbookId": {
+      "type": "string",
+      "value": "[resourceId( 'microsoft.insights/workbooks', parameters('workbookId'))]"
+    }
+  },
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#"
+}
