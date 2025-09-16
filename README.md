@@ -7,7 +7,7 @@ This repository contains reusable content for Microsoft Sentinel, including:
 - **Workbooks** for visualizing security data and metrics.
 - **Logic Apps (Playbooks)** for incident response automation and integrations.
 
-The goal is to share practical, production-tested content that others can quickly deploy and adapt to their environments.
+My goal is to share practical, production-tested content that others can quickly deploy and adapt to their Sentinel environments.
 
 ---
 
