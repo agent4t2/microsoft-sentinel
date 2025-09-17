@@ -1,0 +1,3 @@
+Snowflake
+| where isnotempty(QueryText)
+| project QueryStartTime, QueryText, QueryDatabaseName, QuerySchemaName, QueryType, QueryUserName, QueryWarehouseName, QueryWarehouseSize, QueryTag, QueryExecutionStatus, QueryTotalElapsedTime, QueryCreditsUsedCloudServices
