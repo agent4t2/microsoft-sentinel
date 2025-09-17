@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-08-01/deploymentTemplate.json#",
+  "contentVersion": "<ip>",
+  "parameters": {
+    "Workspace": {
+      "type": "string",
+      "metadata": {
+        "description": "The Microsoft Sentinel workspace into which the function will be deployed. Has to be in the selected Resource Group."
+      }
+    },
+    "WorkspaceRegion": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "The region of the selected workspace. The default value will use the Region selection above."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('Workspace'), '/GCPSCC')]",
+      "location": "[parameters('WorkspaceRegion')]",
+      "properties": {
+        "etag": "*",
+        "displayName": "GCPSCC",
+        "category": "Parser",
+        "FunctionAlias": "GCPSCC",
+        "query": "GoogleCloudSCC\n| extend FindingsResourceParsed = parse_json(FindingsResource)\n| extend\n    ResourceType = tostring(FindingsResourceParsed.type),\n    ClusterName = tostring(FindingsResourceParsed.labels.cluster_name),\n    Location = tostring(FindingsResourceParsed.labels.location),\n    ProjectId = tostring(FindingsResourceParsed.labels.project_id),\n    ContainerName = tostring(FindingsResourceParsed.labels.container_name),\n    NamespaceName = tostring(FindingsResourceParsed.labels.namespace_name),\n    PodName = tostring(FindingsResourceParsed.labels.pod_name),\n    Method = tostring(FindingsResourceParsed.labels.method),\n    Service = tostring(FindingsResourceParsed.labels.service),\n    NodeName = tostring(FindingsResourceParsed.labels.node_name),\n    InstanceGroupManagerId = tostring(FindingsResourceParsed.labels.instance_group_manager_id),\n    InstanceGroupManagerName = tostring(FindingsResourceParsed.labels.instance_group_manager_name),\n    ModuleId = tostring(FindingsResourceParsed.labels.module_id),\n    VersionId = tostring(FindingsResourceParsed.labels.version_id),\n    Zone = tostring(FindingsResourceParsed.labels.zone),\n    EnvironmentName = tostring(FindingsResourceParsed.labels.environment_name),\n    SubnetworkId = tostring(FindingsResourceParsed.labels.subnetwork_id),\n    SubnetworkName = tostring(FindingsResourceParsed.labels.subnetwork_name),\n    BucketName = tostring(FindingsResourceParsed.labels.bucket_name),\n    InstanceId = tostring(FindingsResourceParsed.labels.instance_id),\n    ConfigurationName = tostring(FindingsResourceParsed.labels.configuration_name),\n    RevisionName = tostring(FindingsResourceParsed.labels.revision_name),\n    ServiceName = tostring(FindingsResourceParsed.labels.service_name),\n    GatewayId = tostring(FindingsResourceParsed.labels.gateway_id),\n    Region = tostring(FindingsResourceParsed.labels.region),\n    DiskId = tostring(FindingsResourceParsed.labels.disk_id),\n    DatabaseId = tostring(FindingsResourceParsed.labels.database_id),\n    DeploymentResourcePoolId = tostring(FindingsResourceParsed.labels.deployment_resource_pool_id),\n    ResourceContainer = tostring(FindingsResourceParsed.labels.resource_container),\n    InstanceGroupId = tostring(FindingsResourceParsed.labels.instance_group_id),\n    InstanceGroupName = tostring(FindingsResourceParsed.labels.instance_group_name),\n    BackendServiceName = tostring(FindingsResourceParsed.labels.backend_service_name),\n    ForwardingRuleName = tostring(FindingsResourceParsed.labels.forwarding_rule_name),\n    TargetProxyName = tostring(FindingsResourceParsed.labels.target_proxy_name),\n    UrlMapName = tostring(FindingsResourceParsed.labels.url_map_name),\n    EndpointId = tostring(FindingsResourceParsed.labels.endpoint_id),\n    ConfigId = tostring(FindingsResourceParsed.labels.config_id),\n    JobId = tostring(FindingsResourceParsed.labels.job_id),\n    EmailId = tostring(FindingsResourceParsed.labels.email_id),\n    UniqueId = tostring(FindingsResourceParsed.labels.unique_id),\n    Version = tostring(FindingsResourceParsed.labels.version),\n    NetworkId = tostring(FindingsResourceParsed.labels.network_id),\n    BackendGroupName = tostring(FindingsResourceParsed.labels.backend_group_name),\n    BackendGroupScope = tostring(FindingsResourceParsed.labels.backend_group_scope),\n    BackendGroupType = tostring(FindingsResourceParsed.labels.backend_group_type),\n    BackendNetworkName = tostring(FindingsResourceParsed.labels.backend_network_name),\n    BackendSubnetworkName = tostring(FindingsResourceParsed.labels.backend_subnetwork_name),\n    BackendServiceId = tostring(FindingsResourceParsed.labels.backend_service_id),\n    JobName = tostring(FindingsResourceParsed.labels.job_name),\n    StepId = tostring(FindingsResourceParsed.labels.step_id),\n    DatasetId = tostring(FindingsResourceParsed.labels.dataset_id)\n| project TimeGenerated, ResourceType, ClusterName, Location, ProjectId, ContainerName, NamespaceName, PodName, Method, Service, NodeName, InstanceGroupManagerId , InstanceGroupManagerName, ModuleId, VersionId, Zone, EnvironmentName, SubnetworkId, SubnetworkName, BucketName, InstanceId, ConfigurationName, RevisionName, ServiceName, GatewayId, Region, DiskId, DatabaseId, DeploymentResourcePoolId, ResourceContainer, InstanceGroupId, InstanceGroupName, BackendServiceName, ForwardingRuleName, TargetProxyName, UrlMapName, EndpointId, ConfigId, JobId, EmailId, UniqueId, Version, NetworkId, BackendGroupName, BackendGroupScope, BackendGroupType, BackendNetworkName, BackendSubnetworkName, BackendServiceId, JobName, StepId, DatasetId",
+        "version": 1,
+        "functionParameters": ""
+      }
+    }
+  ]
+}

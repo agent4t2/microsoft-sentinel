@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-08-01/deploymentTemplate.json#",
+  "contentVersion": "<ip>",
+  "parameters": {
+    "Workspace": {
+      "type": "string",
+      "metadata": {
+        "description": "The Microsoft Sentinel workspace into which the function will be deployed. Has to be in the selected Resource Group."
+      }
+    },
+    "WorkspaceRegion": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "The region of the selected workspace. The default value will use the Region selection above."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('Workspace'), '/GongUnifiedLogs')]",
+      "location": "[parameters('WorkspaceRegion')]",
+      "properties": {
+        "etag": "*",
+        "displayName": "GongUnifiedLogs",
+        "category": "Gong",
+        "FunctionAlias": "GongUnifiedLogs",
+        "query": "// Combine Gong User Activity, Calls, and Access logs\nlet UserActivity = GongUserActivityLog_CL\n    | project TimeGenerated, UserId=user_id_s, UserEmail=user_email_address_s, UserName=user_full_name_s,\n              ActivityAction=logrecord_action_s, Referrer=logrecord_httprequest_referrer_uri_s,\n              ClientIP=logrecord_httprequest_client_ip_s, Endpoint=logrecord_httprequest_endpoint_uri_s,\n              CallId=extractjson(\"$.values[0]\", logrecord_httprequest_parameters_s), Type;\nlet Calls = GongCallsV2_CL\n    | project CallId=id_s, CallTitle=title_s, CallURL=url_s, ScheduledTime=scheduled_t, StartedTime=started_t,\n              Duration=duration_s, Direction=direction_s, Media=media_s, Language=language_s,\n              PrimaryUserId=primaryUserId_s, MeetingURL=meetingUrl_s, Type;\nlet Access = GongAccessLog_CL\n    | project TimeGenerated, UserId=user_id_s, UserEmail=user_email_address_s, UserName=user_full_name_s,\n              Protocol=logrecord_protocol_s, Method=logrecord_method_s, RequestedURL=logrecord_requested_url_s,\n              Status=logrecord_status_s, ClientIP=logrecord_request_headers_x_forwarded_for_s, Type;\nUserActivity\n    | join kind=fullouter Calls on $left.CallId == $right.CallId\n    | join kind=fullouter Access on $left.UserId == $right.UserId\n    | project TimeGenerated=coalesce(TimeGenerated, StartedTime),\n              UserId=coalesce(UserId, PrimaryUserId),\n              UserEmail, UserName,\n              ActivityAction, Endpoint, Referrer,\n              Protocol, Method, RequestedURL, Status,\n              ClientIP=coalesce(ClientIP, ClientIP1),\n              CallId, CallTitle, CallURL, ScheduledTime, StartedTime, Duration, Direction, Media, Language, MeetingURL,\n              SourceType=Type",
+        "version": 1,
+        "functionParameters": ""
+      }
+    }
+  ]
+}

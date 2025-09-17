@@ -1,0 +1,18 @@
+{
+    "ParserName": "SyslogNix",
+    "ParserVersion": "1.0.0",
+    "ParserDisplayName": "Parse Unix Syslog With Correct Host",
+    "ParserDescription": "Custom parser to extract and correctly assign hostnames from Unix syslog messages in Microsoft Sentinel.",
+    "ParserType": "KQL Function",
+    "ParserCategory": "Syslog",
+    "ParserFunctionAlias": "SyslogNix",
+    "ParserQuery": "let ParseUnixSyslogWithCorrectHost = () {\n    Syslog\n    | extend ExtractedHost = extract(\"from ([^:]+):\", 1, SyslogMessage)\n    | extend Computer = iff(ExtractedHost != \"\", ExtractedHost, Computer)\n};\nParseUnixSyslogWithCorrectHost()",
+    "ParserTags": [
+        "Unix",
+        "Syslog",
+        "Custom",
+        "Hostname",
+        "AIX",
+        "Solaris"
+    ]
+}

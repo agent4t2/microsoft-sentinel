@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-08-01/deploymentTemplate.json#",
+  "contentVersion": "<ip>",
+  "parameters": {
+    "Workspace": {
+      "type": "string",
+      "metadata": {
+        "description": "The Microsoft Sentinel workspace into which the function will be deployed. Has to be in the selected Resource Group."
+      }
+    },
+    "WorkspaceRegion": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "The region of the selected workspace. The default value will use the Region selection above."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-08-01",
+      "name": "[concat(parameters('Workspace'), '/nFront18F')]",
+      "location": "[parameters('WorkspaceRegion')]",
+      "properties": {
+        "etag": "*",
+        "displayName": "nFront18F",
+        "category": "nFront",
+        "FunctionAlias": "nFront18F",
+        "query": "nFront_CL\n| extend RawDataElements = split(RawData, ',')\n| extend Timestamp = trim(@\"[\"\" ]\", tostring(RawDataElements[0])), UserID = trim('\"', tostring(RawDataElements[1])), EventCode = trim('\"', tostring(RawDataElements[2])), PasswordElement = trim('\"', tostring(RawDataElements[3]))\n| extend PW_Snip = trim_end(\" \", replace_string(replace_string(PasswordElement, '\"', ''), '\"', ''))\n| extend CleanTimestamp = replace_string(Timestamp, \"  \", \" \")\n| extend MonthPart = tostring(toint(extract(@\"(\\d{1,2})-(\\d{1,2})-(\\d{4})$\", 1, CleanTimestamp))), DayPart = tostring(toint(extract(@\"(\\d{1,2})-(\\d{1,2})-(\\d{4})$\", 2, CleanTimestamp))), YearPart = extract(@\"(\\d{1,2})-(\\d{1,2})-(\\d{4})$\", 3, CleanTimestamp)\n| extend ReformattedDate = strcat(YearPart, \"-\", iff(strlen(MonthPart) == 1, strcat(\"0\", MonthPart), MonthPart), \"-\", iff(strlen(DayPart) == 1, strcat(\"0\", DayPart), DayPart))\n| extend EventTimeFull = trim(\" \", extract(@\"(\\d{1,2}):(\\d{2}):(\\d{2}):(\\d{1,3})\", 0, CleanTimestamp))\n| extend EventTimeFixed = iff(isnotempty(EventTimeFull) and strlen(EventTimeFull) < 11, strcat(\"0\", EventTimeFull), EventTimeFull)\n| extend Hours = extract(@\"^(\\d{1,2}):\", 1, EventTimeFixed), Minutes = extract(@\":(\\d{2}):\", 1, EventTimeFixed), Seconds = extract(@\":(\\d{2}):(\\d{1,3})$\", 1, EventTimeFixed), Milliseconds = extract(@\":(\\d{2}):(\\d{1,3})$\", 2, EventTimeFixed)\n| extend MillisecondsFixed = iff(strlen(Milliseconds) == 1, strcat(Milliseconds, \"00\"), iff(strlen(Milliseconds) == 2, strcat(Milliseconds, \"0\"), Milliseconds))\n| extend EventTime = iff(isnotempty(EventTimeFixed), strcat(iff(strlen(Hours) == 1, strcat(\"0\", Hours), Hours), \":\", Minutes, \":\", Seconds, \".\", MillisecondsFixed), \"\")\n| extend ParsedDateTime_ET = todatetime(strcat(ReformattedDate, \" \", EventTime))\n| extend ParsedDateTime_UTC = datetime_add(\"Hour\", 5, ParsedDateTime_ET)\n| extend FormattedTimestamp = iff(isnotnull(ParsedDateTime_UTC), ParsedDateTime_UTC, datetime(null))\n| project EventTime = FormattedTimestamp, UserID, EventID = EventCode, PasswordPart = PW_Snip, Type\n| order by EventTime desc",
+        "version": 1,
+        "functionParameters": ""
+      }
+    }
+  ]
+}
