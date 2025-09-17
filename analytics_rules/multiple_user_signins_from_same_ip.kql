@@ -6,7 +6,6 @@ let ZscalerIPs = _GetWatchlist("zscalerip")
     | project ZScalerIP;
 SigninLogs
 | where not(LocationDetails.countryOrRegion has_any("US","CA"))
-| where not(UserPrincipalName has_any("iqo-","spi-","jinsinga","bshea","amilevoj","bingram","jmccann","cmccann","bpozdoll","@inspiro.com","@iqor.com"))
 | where not(IPAddress in (ExcludedIPs))
 | where not(IPAddress in (GlobalProtectIPs))
 | where not(IPAddress in (ZscalerIPs))
