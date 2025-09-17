@@ -1,0 +1,383 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/<PROVIDER>/schemas/2016-06-01/workflowdefinition.json#",
+        "contentVersion": "<ip>",
+        "triggers": {
+            "Recurrence": {
+                "type": "Recurrence",
+                "recurrence": {
+                    "frequency": "Hour",
+                    "interval": 1,
+                    "timeZone": "UTC",
+                    "startTime": "2025-09-11T21:00:00Z"
+                }
+            }
+        },
+        "actions": {
+            "Initialize_varFrom": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "varFrom",
+                            "type": "String",
+                            "value": "@{formatDateTime(addHours(utcNow(), -1), 'yyyy-MM-ddTHH:mm:ssZ')}"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Get_Gong_API_Secret": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Initialize_varTo": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "varTo",
+                            "type": "String",
+                            "value": "@{utcNow()}"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_varFrom": [
+                        "Succeeded"
+                    ]
+                }
+            },
+            "Initialize_varPage": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "varPage",
+                            "type": "Integer",
+                            "value": 1
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_varTo": [
+                        "Succeeded"
+                    ]
+                }
+            },
+            "Initialize_varHasMore": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "varHasMore",
+                            "type": "Boolean",
+                            "value": true
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_varPage": [
+                        "Succeeded"
+                    ]
+                }
+            },
+            "Until_Paging": {
+                "type": "Until",
+                "expression": "@equals(variables('varHasMore'), false)",
+                "limit": {
+                    "count": 120,
+                    "timeout": "PT30M"
+                },
+                "actions": {
+                    "HTTP_Call_Gong_API": {
+                        "type": "Http",
+                        "inputs": {
+                            "uri": "@{concat('https://us-69641.api.gong.io/v2/logs?logType=UserActivityLog','&fromDateTime=',variables('varFrom'),'&toDateTime=',variables('varTo'),'&pageSize=',parameters('PageSize'),'&pageNumber=',variables('varPage'))}",
+                            "method": "GET",
+                            "headers": {
+                                "Accept": "application/json"
+                            },
+                            "authentication": {
+                                "type": "Basic",
+                                "username": "@{body('Get_Gong_API_Key')?['value']}",
+                                "password": "@{body('Get_Gong_API_Secret')?['value']}"
+                            }
+                        }
+                    },
+                    "Condition_Status_200_or_404": {
+                        "type": "If",
+                        "expression": {
+                            "or": [
+                                {
+                                    "equals": [
+                                        "@outputs('HTTP_Call_Gong_API')?['statusCode']",
+                                        200
+                                    ]
+                                },
+                                {
+                                    "equals": [
+                                        "@outputs('HTTP_Call_Gong_API')?['statusCode']",
+                                        404
+                                    ]
+                                }
+                            ]
+                        },
+                        "actions": {
+                            "Condition_200": {
+                                "type": "If",
+                                "expression": {
+                                    "equals": [
+                                        "@outputs('HTTP_Call_Gong_API')?['statusCode']",
+                                        200
+                                    ]
+                                },
+                                "actions": {
+                                    "Parse_JSON": {
+                                        "type": "ParseJson",
+                                        "inputs": {
+                                            "content": "@body('HTTP_Call_Gong_API')",
+                                            "schema": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "logEntries": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object"
+                                                        }
+                                                    },
+                                                    "records": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "currentPageSize": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "currentPageNumber": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "totalRecords": {
+                                                                "type": [
+                                                                    "integer",
+                                                                    "null"
+                                                                ]
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "Select_Flatten_Page": {
+                                        "type": "Select",
+                                        "inputs": {
+                                            "from": "@coalesce(body('Parse_JSON')?['logEntries'], createArray())",
+                                            "select": {
+                                                "user_id": "@{string(coalesce(item()?['userId'], ''))}",
+                                                "user_email_address": "@{string(coalesce(item()?['userEmailAddress'], ''))}",
+                                                "user_full_name": "@{string(coalesce(item()?['userFullName'], ''))}",
+                                                "event_time": "@{string(coalesce(item()?['eventTime'], utcNow()))}",
+                                                "logrecord_audit_id": "@{string(coalesce(item()?['logRecord']?['auditId'], ''))}",
+                                                "logrecord_table_changes": "@coalesce(item()?['logRecord']?['tableChanges'], json('[]'))",
+                                                "logrecord_customdata": "@coalesce(item()?['logRecord']?['customData'], json('[]'))",
+                                                "logrecord_remote_calls_audit_data": "@coalesce(item()?['logRecord']?['remoteCallsAuditData'], json('[]'))",
+                                                "logrecord_action": "@{string(coalesce(item()?['logRecord']?['action'], ''))}",
+                                                "logrecord_httprequest_referrer_uri": "@{string(coalesce(item()?['logRecord']?['httpRequest']?['referrerUri'], ''))}",
+                                                "logrecord_httprequest_client_ip": "@{string(coalesce(item()?['logRecord']?['httpRequest']?['clientIp'], ''))}",
+                                                "logrecord_httprequest_verb": "@{string(coalesce(item()?['logRecord']?['httpRequest']?['verb'], ''))}",
+                                                "logrecord_httprequest_endpoint_uri": "@{string(coalesce(item()?['logRecord']?['httpRequest']?['endpointUri'], ''))}",
+                                                "logrecord_httprequest_body": "@{string(coalesce(item()?['logRecord']?['httpRequest']?['body'], ''))}",
+                                                "logrecord_httprequest_parameters": "@coalesce(item()?['logRecord']?['httpRequest']?['parameters'], json('[]'))",
+                                                "logrecord_workspace_id": "@{string(coalesce(item()?['logRecord']?['workspaceId'], ''))}"
+                                            }
+                                        },
+                                        "runAfter": {
+                                            "Parse_JSON": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    },
+                                    "For_each_Record": {
+                                        "type": "Foreach",
+                                        "foreach": "@body('Select_Flatten_Page')",
+                                        "actions": {
+                                            "Send_Data": {
+                                                "type": "ApiConnection",
+                                                "inputs": {
+                                                    "host": {
+                                                        "connection": {
+                                                            "name": "@parameters('$connections')['azureloganalyticsdatacollector']['connectionId']"
+                                                        }
+                                                    },
+                                                    "method": "post",
+                                                    "body": "@item()",
+                                                    "headers": {
+                                                        "Log-Type": "GongUserActivityLog",
+                                                        "time-generated-field": "event_time",
+                                                        "Content-Type": "application/json"
+                                                    },
+                                                    "path": "/api/logs"
+                                                }
+                                            }
+                                        },
+                                        "runAfter": {
+                                            "Select_Flatten_Page": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    },
+                                    "Set_varHasMore": {
+                                        "type": "SetVariable",
+                                        "inputs": {
+                                            "name": "varHasMore",
+                                            "value": "@bool(if(less(length(coalesce(body('Parse_JSON')?['logEntries'], createArray())), parameters('PageSize')), false, true))"
+                                        },
+                                        "runAfter": {
+                                            "For_each_Record": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    },
+                                    "Increment_Page": {
+                                        "type": "IncrementVariable",
+                                        "inputs": {
+                                            "name": "varPage",
+                                            "value": 1
+                                        },
+                                        "runAfter": {
+                                            "Set_varHasMore": [
+                                                "Succeeded"
+                                            ]
+                                        }
+                                    }
+                                },
+                                "else": {
+                                    "actions": {}
+                                }
+                            },
+                            "Condition_404": {
+                                "type": "If",
+                                "expression": {
+                                    "equals": [
+                                        "@outputs('HTTP_Call_Gong_API')?['statusCode']",
+                                        404
+                                    ]
+                                },
+                                "actions": {
+                                    "Set_varHasMore_to_false": {
+                                        "type": "SetVariable",
+                                        "inputs": {
+                                            "name": "varHasMore",
+                                            "value": false
+                                        }
+                                    }
+                                },
+                                "else": {
+                                    "actions": {}
+                                }
+                            }
+                        },
+                        "else": {
+                            "actions": {}
+                        },
+                        "runAfter": {
+                            "HTTP_Call_Gong_API": [
+                                "Succeeded",
+                                "Failed"
+                            ]
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Initialize_varHasMore": [
+                        "Succeeded"
+                    ]
+                }
+            },
+            "Get_Gong_API_Key": {
+                "type": "ApiConnection",
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['keyvault']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/secrets/@{encodeURIComponent('Gong-API-Key')}/value"
+                },
+                "runAfter": {},
+                "runtimeConfiguration": {
+                    "secureData": {
+                        "properties": [
+                            "inputs",
+                            "outputs"
+                        ]
+                    }
+                }
+            },
+            "Get_Gong_API_Secret": {
+                "type": "ApiConnection",
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['keyvault']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/secrets/@{encodeURIComponent('Gong-API-Secret')}/value"
+                },
+                "runAfter": {
+                    "Get_Gong_API_Key": [
+                        "SUCCEEDED"
+                    ]
+                },
+                "runtimeConfiguration": {
+                    "secureData": {
+                        "properties": [
+                            "inputs",
+                            "outputs"
+                        ]
+                    }
+                }
+            }
+        },
+        "outputs": {},
+        "parameters": {
+            "PageSize": {
+                "defaultValue": 500,
+                "type": "Int"
+            },
+            "$connections": {
+                "type": "Object",
+                "defaultValue": {}
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "type": "Object",
+            "value": {
+                "azureloganalyticsdatacollector": {
+                    "id": "/subscriptions/<SUBSCRIPTION_ID>/providers/<PROVIDER>/locations/eastus/managedApis/azureloganalyticsdatacollector",
+                    "connectionId": "/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/<RESOURCE_GROUP>/providers/<PROVIDER>/connections/azureloganalyticsdatacollector-4",
+                    "connectionName": "azureloganalyticsdatacollector-4"
+                },
+                "keyvault": {
+                    "id": "/subscriptions/<SUBSCRIPTION_ID>/providers/<PROVIDER>/locations/eastus/managedApis/keyvault",
+                    "connectionId": "/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/<RESOURCE_GROUP>/providers/<PROVIDER>/connections/keyvault-4",
+                    "connectionName": "keyvault-4",
+                    "connectionProperties": {
+                        "authentication": {
+                            "type": "ManagedServiceIdentity"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
