@@ -1,7 +1,5 @@
 let IdentityLogonEventsFiltered = IdentityLogonEvents
-    | where
-    //AccountName == "rlacouture"
-    not (IPAddress startswith "10.")  
+    | where not (IPAddress startswith "10.")  
     and not (AccountUpn startswith "spi") 
     and not (AccountUpn endswith "inspiro.com")
     and isnotempty(AccountObjectId) 
@@ -14,29 +12,19 @@ let IdentityLogonEventsFiltered = IdentityLogonEvents
     and not (ISP contains "palo alto")
     and not (ISP startswith "inspiro")
     and not (ActionType in ("LogonFailed")) 
-    //and TimeGenerated >= startofday(now())
     and TimeGenerated >= datetime(2025-01-01 00:00:00)
-    //and AccountName == "abrahan_blanco" 
     ;
 let JoinOnAccountUpn = IdentityLogonEventsFiltered
     | join kind=leftouter (
         IdentityInfo | 
         where isnotempty(AccountObjectId) 
         and TimeGenerated >= datetime(2020-01-01 00:00:00)
-        //and AccountUPN == "<EMAIL>"
         | extend AcctInfo = dynamic_to_json(UserAccountControl)
         | summarize arg_max(TimeGenerated, *) by AccountObjectId
         | project TimeGen = TimeGenerated, EmpID = EmployeeId, email = AccountUPN, Dept = Department, IIAcctName = AccountName, IIAcctDisplayName = AccountDisplayName, IIMailAddress = MailAddress, AccountObjectId, AcctInfo
     ) on $left.AccountObjectId == $right.AccountObjectId;
 JoinOnAccountUpn | 
     where not (EmpID in ("CONSULTANT", "CONTRACTOR")) 
-    and not (email startswith "iqo")
-    and not (email endswith "illuminatechnology.com")
-    and not (email endswith "inspiro.com")
-    and not (email endswith "netrixllc.com")
-    and not (email endswith "iqor.com")
-    and not (email endswith "lyngsoesystems.com")
-    and not (email endswith "eliassen.com")
     and isnotempty(email)
 | summarize count(), LastLogin = max(TimeGenerated), AcctName = max(AccountName), email = max(AccountUpn), DisplayName = max(AccountDisplayName), AcctInfo = max(AcctInfo) by IPAddress, Location, EmpID, Dept
 | project-reorder DisplayName, email, AcctName, AcctInfo, Dept, Location, LastLogin, IPAddress, EmpID
