@@ -17,32 +17,6 @@ Syslog
 | extend SRC_IP = extract("SRC=([\\d.]+)", 1, SyslogMessage)
 | extend DST_IP = extract("DST=([\\d.]+)", 1, SyslogMessage)
 | where not (SRC_IP in (excludedSRCIPs))
-| where not (
-    (SRC_IP == "<PRIVATE_IP>" and Computer startswith "kellercpdev") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer startswith "kellercpdev") or
-    (SRC_IP startswith "192.168.203" and Computer startswith "kellerny") or
-    (SRC_IP startswith "10.201.44" and Computer startswith "wsfnyopsprod") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer startswith "unisphere") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer startswith "asfnysalta") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer startswith "kellerny") or
-    (SRC_IP startswith "192.168.9" and Computer startswith "kellerny") or
-    (SRC_IP startswith "192.168.9" and Computer startswith "dbblk") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer startswith "kellerny") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer startswith "jcpnydev") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer startswith "dbblkabva") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer == "dbvcsfnyprod01") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer == "jsfnyprod21") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer == "dbbocoprod17") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer startswith "yanagvaprod") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer startswith "wsfnystg") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer == "irbocoprod01") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer == "dbmonitor") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer startswith "solrsfny") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer startswith "dbsfnyprod") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer startswith "kmbocoprod") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer startswith "dbbocostg") or
-    (SRC_IP == "<PRIVATE_IP>" and Computer startswith "jsfnyqa0")
-)
 | summarize Count=count(), DST_Values=make_set(HostIP) by Source=SRC_IP
 | project Source, Count, DST_Values
 | where Count > 5
