@@ -1,4 +1,4 @@
-// 18F Fastly Logs - Response Codes over Time
+// Fastly Logs - Response Codes over Time
 // Last Updated 11.06.2024 - R.F.
 Fastly_CL
 | extend status_group = case(
