@@ -15,6 +15,4 @@ let user = _GetWatchlist('greylist')
     and not (ISP == "Microsoft 365 Common and Office Online server")
     and not (ISP == "SharePoint Online and OneDrive for Business server")
     and not (ISP == "Microsoft Corporation")
-    and not (ISP contains "palo alto")
-    and not (ISP contains "1-800-flowers.com")
 | order by AccountDisplayName
