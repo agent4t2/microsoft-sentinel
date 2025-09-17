@@ -43,7 +43,7 @@ IP_Indicators
     any(DeviceAction), any(Type), any(ApplicationProtocol), any(DestinationPort), 
     any(TrafficLightProtocolLevel)
   by CS_ipEntity
-| where HitCount <= 3  // adjust this threshold if needed
+| where HitCount >= 3  // adjust this threshold if needed
 | project 
     timestamp = LastSeen,
     SourceIP = any_SourceIP,
