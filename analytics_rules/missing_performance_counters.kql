@@ -1,0 +1,14 @@
+// Hosts Sending Heartbeat but Missing Perf Logs  
+let timeframe = ago(1d);  
+let heartbeatHosts = Heartbeat  
+| where TimeGenerated >= timeframe  
+| distinct Computer, OSType;  
+let perfHosts = Perf  
+| where TimeGenerated >= timeframe  
+| distinct Computer;  
+heartbeatHosts  
+| where Computer !contains "ama-"  
+| where Computer !startswith "cmg"  
+| where Computer !in (perfHosts)  
+| project Computer, OSType  
+| sort by Computer asc

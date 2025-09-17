@@ -1,0 +1,11 @@
+// Identifies High Volume Sev 8,9,10 Bricata IDS Events
+let event_count_threshold = 10;
+CommonSecurityLog
+| where DeviceProduct contains "Bricata"
+| where LogSeverity in (8,9,10)
+| where Activity has_any ("webcrawler","[SCAN]","[COMPROMISED]")
+| summarize count() by SourceIP, Activity
+| where count_ >= event_count_threshold
+| project SourceIP, count_, Activity
+| order by count_ desc 
+

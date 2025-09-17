@@ -1,0 +1,8 @@
+let windc = _GetWatchlist("windcs")
+    | project Computer;
+Event
+| where Computer in (windc)
+| where EventLog == "System"
+| where Source == "Kerberos-Key-Distribution-Center"
+| where EventID in (39, 40, 41)
+| project TimeGenerated, Computer, EventID, RenderedDescription

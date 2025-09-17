@@ -1,0 +1,18 @@
+let tbl_threshold = 10;
+oraudit_CL
+| extend auth_raw = tostring(AUTHENTICATION_TYPE)
+| extend 
+    AuthType = extract(@"\(TYPE=\((.*?)\)\)", 1, auth_raw),
+    Protocol = extract(@"\(PROTOCOL=(.*?)\)", 1, auth_raw),
+    ClientIP = extract(@"\(HOST=(.*?)\)", 1, auth_raw),
+    Port = extract(@"\(PORT=(.*?)\)", 1, auth_raw),
+    ClientAddress = iif(auth_raw has "(CLIENT ADDRESS=())", "Empty", "Present")
+| where isnotempty(tostring(DBUSERNAME))
+| where ACTION_NAME =~ 'DROP'
+| extend TableName = replace(@'[,\(\)]', '', extract(@'(?i)SELECT(.*?)FROM\s(.*?)\s', 2, tostring(SQL_TEXT)))
+| where isnotempty(TableName)
+| where TableName !~ 'SELECT'
+| summarize tbl_count = dcount(TableName) by tostring(DBUSERNAME), ClientIP
+| where tbl_count > tbl_threshold
+| extend AccountCustomEntity = tostring(DBUSERNAME)
+

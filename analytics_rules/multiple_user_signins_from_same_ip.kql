@@ -1,0 +1,16 @@
+let ExcludedIPs= _GetWatchlist("sitepubip")
+    | project SitePublicIP;
+let GlobalProtectIPs = _GetWatchlist("gpgateway")
+    | project GPGatewayIP;
+let ZscalerIPs = _GetWatchlist("zscalerip")
+    | project ZScalerIP;
+SigninLogs
+| where not(LocationDetails.countryOrRegion has_any("US","CA"))
+| where not(UserPrincipalName has_any("iqo-","spi-","jinsinga","bshea","amilevoj","bingram","jmccann","cmccann","bpozdoll","@inspiro.com","@iqor.com"))
+| where not(IPAddress in (ExcludedIPs))
+| where not(IPAddress in (GlobalProtectIPs))
+| where not(IPAddress in (ZscalerIPs))
+| where UserPrincipalName contains "@"
+| summarize CountryCode = make_set(LocationDetails.countryOrRegion), UserCount = dcount(UserPrincipalName), UserList = make_set(UserPrincipalName) by IPAddress
+| where UserCount between (2 .. 20)
+| order by UserCount desc

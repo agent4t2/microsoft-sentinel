@@ -1,0 +1,5 @@
+AzureActivity
+| where OperationNameValue contains "purge"
+| where ActivityStatusValue == "Start"
+| project TimeGenerated, OperationNameValue, ActivityStatusValue, ResourceGroup, Caller, CallerIpAddress
+

@@ -1,0 +1,5 @@
+Syslog
+| where Facility contains "local7"
+| where HostName has_any ("PAN-")
+| where SeverityLevel contains "critical"
+| where SyslogMessage has_all ("HA", "connection down")

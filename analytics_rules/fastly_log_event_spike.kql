@@ -1,0 +1,35 @@
+// Fastly Log Ingestion - Identify Significant Spikes in Events  
+// Last Updated 12/17/2024 - R.F.
+Fastly_CL
+// Define Buckets
+| extend status_group = case(
+    toreal(response_status_d) >= 200 and toreal(response_status_d) < 300, "2xx Response",
+    toreal(response_status_d) >= 300 and toreal(response_status_d) < 400, "3xx Response",
+    toreal(response_status_d) >= 400 and toreal(response_status_d) < 406, "4xx Response",
+    toreal(response_status_d) >= 406 and toreal(response_status_d) < 420, "WAF Block",
+    toreal(response_status_d) >= 421 and toreal(response_status_d) < 500, "4xx Response", "other")
+| where status_group in ("WAF Block", "4xx Response", "2xx Response")
+// 4 Hour Average Count
+| where TimeGenerated >= ago(5h) and TimeGenerated < startofday(now()) + datetime_part("hour", now()) * 1h
+| summarize avg_4h_count = round(toreal(count()) / 4, 2) by status_group
+| join kind=inner (
+    // Last Full Hour Count
+    Fastly_CL
+    | extend status_group = case(
+        toreal(response_status_d) >= 200 and toreal(response_status_d) < 300, "2xx Response",
+        toreal(response_status_d) >= 300 and toreal(response_status_d) < 400, "3xx Response",
+        toreal(response_status_d) >= 400 and toreal(response_status_d) < 406, "4xx Response",
+        toreal(response_status_d) >= 406 and toreal(response_status_d) < 420, "WAF Block",
+        toreal(response_status_d) >= 421 and toreal(response_status_d) < 500, "4xx Response", "other")
+    | where TimeGenerated >= startofday(now()) + datetime_part("hour", now()) * 1h - 2h and TimeGenerated < startofday(now()) + datetime_part("hour", now()) * 1h - 1h
+    | summarize past_hour_count = round(toreal(count()), 2) by status_group) on status_group
+// Calculate Percentage Change
+| extend percent_change = case(
+    avg_4h_count > 0, round(((past_hour_count - avg_4h_count) / avg_4h_count) * 100.0, 2),
+    avg_4h_count == 0 and past_hour_count > 0, 100.0, 0.0)
+// Identify Significant Spikes
+| extend is_spike = abs(percent_change) > 50.0
+| extend is_significant_spike = abs(percent_change) > 75.0
+| project status_group, past_hour_count, avg_4h_count, percent_change, is_spike, is_significant_spike
+| where percent_change >= 75 
+| order by percent_change desc

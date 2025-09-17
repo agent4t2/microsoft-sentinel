@@ -1,0 +1,6 @@
+Syslog
+| where Facility contains "local7"
+| where HostName has_any ("FW-","PAN-","SDWAN-")
+| where SeverityLevel contains "critical"
+| where SyslogMessage has_all ("Disk usage for","exceeds limit")
+

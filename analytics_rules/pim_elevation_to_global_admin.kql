@@ -1,0 +1,10 @@
+AuditLogs
+| where Category == "RoleManagement"
+| where OperationName == "Add member to role completed (PIM activation)"
+| extend InitiatedBy = tostring(InitiatedBy.user.userPrincipalName)
+| mv-expand TargetResource = TargetResources
+| extend PropertyName = tostring(TargetResources[0].displayName)
+       , NewValue = tostring(TargetResources[0].displayName)
+| where TargetResources[0].displayName == "Global Administrator"
+| distinct TimeGenerated, Identity, InitiatedBy, NewValue, Result, CorrelationId, OperationName, LoggedByService, ResultReason, Resource
+

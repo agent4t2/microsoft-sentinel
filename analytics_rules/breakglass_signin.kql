@@ -1,0 +1,21 @@
+let target_account = "<EMAIL>";
+// Sign-in Events from SigninLogs
+let signin_events = SigninLogs
+| where UserPrincipalName == target_account
+| where ResultType == 0
+| extend EventType = "SignIn"
+| extend AccountCustomEntity = UserPrincipalName
+| extend IPCustomEntity = IPAddress
+| extend AccountDisplayName = UserPrincipalName 
+| project TimeGenerated, EventType, UserPrincipalName, IPAddress, AppDisplayName, ResourceDisplayName, ConditionalAccessStatus, Location, AccountDisplayName, AccountCustomEntity, IPCustomEntity;
+// Cloud Activity Events from CloudAppEvents
+let cloudapp_events = CloudAppEvents
+| where RawEventData has target_account
+| where ActionType == "SignInEvent"
+| extend EventType = "CloudAppActivity"
+| extend AccountCustomEntity = target_account
+| extend IPCustomEntity = tostring(parse_json(RawEventData).ClientIP)
+| project TimeGenerated, EventType, Application, ActivityType, ActionType, RawEventData, AccountDisplayName, AccountCustomEntity, IPCustomEntity;
+// Combine both sources
+union signin_events, cloudapp_events
+| sort by TimeGenerated desc

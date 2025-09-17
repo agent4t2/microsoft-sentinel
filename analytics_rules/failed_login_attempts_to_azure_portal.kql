@@ -1,0 +1,66 @@
+let timeRange = 4h;
+let lookBack = 7d;
+let threshold_Failed = 15; // Increased from 10 to reduce noise
+let threshold_FailedwithSingleIP = 30; // Increased from 20
+let threshold_IPAddressCount = 3; // Increased from 2
+let isGUID = "[0-9a-z]{8}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{12}";
+let excludedResultTypes = dynamic(["0", "50078", "50097", "50125", "50140", "50173", "70044", "70043", "700084", "50074", "50158"]);
+let aadFunc = (tableName: string) {
+    let azPortalSignins = materialize(
+        table(tableName)
+        | where TimeGenerated >= ago(lookBack)
+        | where AppDisplayName =~ "Azure Portal"
+        );
+    let successPortalSignins = azPortalSignins
+        | where TimeGenerated >= ago(timeRange)
+        | where ResultType in ("0", "50097", "50125", "50140") // Only allow genuine successful logins
+        | distinct UserPrincipalName, TimeGenerated;
+    let failPortalSignins = azPortalSignins
+        | where TimeGenerated >= ago(timeRange)
+        | where ResultType !in (excludedResultTypes) // Exclude common MFA failures
+        | extend Unresolved = iff(Identity matches regex isGUID, true, false);
+    let failnoSuccess = failPortalSignins 
+        | join kind= leftouter (successPortalSignins) on UserPrincipalName
+        | where isempty(TimeGenerated1) or TimeGenerated > TimeGenerated1
+        | project-away TimeGenerated1;
+    let identityLookup = azPortalSignins
+        | where TimeGenerated >= ago(lookBack)
+        | where not(Identity matches regex isGUID)
+        | summarize
+            by
+            UserId,
+            lu_UserDisplayName = UserDisplayName,
+            lu_UserPrincipalName = UserPrincipalName;
+    let unresolvedNames = failnoSuccess
+        | where Unresolved == true
+        | join kind= inner (identityLookup) on UserId
+        | extend UserDisplayName = lu_UserDisplayName, UserPrincipalName = lu_UserPrincipalName
+        | project-away lu_UserDisplayName, lu_UserPrincipalName;
+    let u_azPortalSignins = failnoSuccess 
+        | where Unresolved == false 
+        | union unresolvedNames;    
+    u_azPortalSignins
+    | extend
+        DeviceDetail = todynamic(DeviceDetail),
+        LocationDetails = todynamic(LocationDetails)
+    | extend
+        OS = tostring(DeviceDetail.operatingSystem), 
+        Browser = tostring(DeviceDetail.browser),
+        State = tostring((LocationDetails.state)), 
+        City = tostring((LocationDetails.city))
+    | summarize 
+        StartTime = min(TimeGenerated), 
+        EndTime = max(TimeGenerated),
+        Status = make_list(Status, 100), 
+        IPAddresses = make_list(IPAddress, 100), 
+        IPAddressCount = dcount(IPAddress), 
+        FailedLogonCount = count()
+        by UserPrincipalName, UserId, UserDisplayName, AppDisplayName, Browser, OS, City, Type
+    | where (IPAddressCount >= threshold_IPAddressCount and FailedLogonCount >= threshold_Failed) or FailedLogonCount >= threshold_FailedwithSingleIP
+    | extend
+        Name = tostring(split(UserPrincipalName, '@', 0)[0]), 
+        UPNSuffix = tostring(split(UserPrincipalName, '@', 1)[0])
+};
+let aadSignin = aadFunc("SigninLogs");
+let aadNonInt = aadFunc("AADNonInteractiveUserSignInLogs");
+union isfuzzy=true aadSignin, aadNonInt

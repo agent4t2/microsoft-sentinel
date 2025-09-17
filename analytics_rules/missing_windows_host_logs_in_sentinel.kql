@@ -1,0 +1,24 @@
+let UnhealthyCriteria = 1d;
+let lookback = 13d;
+let decommhost = _GetWatchlist("decommhosts")
+    | project DecommHost;
+let deallochost =  _GetWatchlist('deallochosts')
+    | where ReallocatedDate > now()
+    | project DeallocatedHost;     
+Heartbeat
+| where TimeGenerated > ago(lookback)
+| where Type == "Heartbeat"
+| where not (Computer has_any ("aks-default", "ama-metrics", "clone"))
+| where not (Computer has_any (decommhost))
+| where not (Computer has_any (deallochost))
+| summarize LastHeartbeat = max(TimeGenerated) by Computer, OSType
+| extend State = iff(LastHeartbeat < ago(UnhealthyCriteria), 'Unhealthy', 'Healthy')
+| project
+    ["Computer"]=strcat(Computer),
+    State,
+    OSType,
+    LastHeartbeat = format_datetime(LastHeartbeat, 'yyyy-MM-dd HH:mm:ss')
+| where State == "Unhealthy"
+| where OSType == "Windows"
+| order by State desc, LastHeartbeat desc, Computer asc
+

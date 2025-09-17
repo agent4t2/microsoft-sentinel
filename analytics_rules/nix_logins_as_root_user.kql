@@ -1,0 +1,7 @@
+Syslog  
+| where Facility contains "authpriv"
+| where ProcessName == "su"   
+| where SyslogMessage contains ("session opened for user root")
+| where SyslogMessage !contains "closed"
+| summarize count () by Computer, HostIP, ProcessName, Facility, SyslogMessage
+| order by Computer asc

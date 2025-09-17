@@ -1,0 +1,8 @@
+let RogueIPs = _GetWatchlist('rogueip')
+    | project ip_address;
+CommonSecurityLog
+| where DeviceVendor == "Palo Alto Networks"
+| where Activity == "TRAFFIC"
+| where SourceIP in (RogueIPs)
+| top 1 by TimeGenerated desc
+

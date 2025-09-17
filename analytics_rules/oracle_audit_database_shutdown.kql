@@ -1,0 +1,11 @@
+oraudit_CL
+| extend auth_raw = tostring(AUTHENTICATION_TYPE)
+| extend 
+    AuthType = extract(@"\(TYPE=\((.*?)\)\)", 1, auth_raw),
+    Protocol = extract(@"\(PROTOCOL=(.*?)\)", 1, auth_raw),
+    ClientIP = extract(@"\(HOST=(.*?)\)", 1, auth_raw),
+    Port = extract(@"\(PORT=(.*?)\)", 1, auth_raw),
+    ClientAddress = iif(auth_raw has "(CLIENT ADDRESS=())", "Empty", "Present")
+| where isnotempty(DBNAME)
+| where ACTION_NAME =~ 'SHUTDOWN'
+| project TimeGenerated, DBNAME, ClientIP, DBUSERNAME, OS_USERNAME

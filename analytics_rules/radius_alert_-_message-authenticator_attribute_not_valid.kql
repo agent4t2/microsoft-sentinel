@@ -1,0 +1,15 @@
+Event
+| where EventLog contains "System"
+| where Computer contains "SENTINEL0"
+| where RenderedDescription contains "RADIUS"
+| where RenderedDescription contains "Message-Authenticator attribute that is not valid"
+| extend IPAddress = extract(@"client (\d{1,3}(?:\.\d{1,3}){3})", 1, RenderedDescription)
+| project
+    TimeGenerated,
+    EventLog,
+    Computer,
+    EventID,
+    EventLevel,
+    RenderedDescription,
+    UserName,
+    IPAddress

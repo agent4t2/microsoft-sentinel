@@ -1,0 +1,21 @@
+VaronisAlerts_CL
+| where isnotempty(AlertSeverity_s)
+| extend DeviceNames = parse_json(DeviceNames_s)
+| mv-expand DeviceNames
+| extend Devices_a = tostring(DeviceNames)
+| extend UserNames = parse_json(UserSamAccountNames_s)
+| mv-expand UserNames
+| extend Users_a = tostring(UserNames)
+| extend SourceTypes = parse_json(DataSourceTypes_s)
+| mv-expand SourceTypes
+| extend Types_a = tostring(SourceTypes)
+| extend DataSources = parse_json(DataSources_s)
+| mv-expand DataSources
+| extend Sources_a = tostring(DataSources)
+| extend Countries = parse_json(Countries_s)
+| mv-expand Countries
+| extend Countries_a = tostring(Countries)
+| extend States = parse_json(States_s)
+| mv-expand States
+| extend States_a = tostring(States)
+| project TimeGenerated, Devices_a, Users_a, Sources_a, Types_a, Countries_a, States_a, AlertId_g, ThreatDetectionPolicyName_s, AlertTime_t, AlertSeverity_s, AlertCategory_s, Status_s, BlacklistedLocation_b, AbnormalLocations_s, EventsCount_d, UserNames_s, ContainsMaliciousExternalIPs_b, AggregatedExternalIPThreatTypes_s, InitialEventTimeUTC_t, AccountsHaveFollowUpIndicators_s, AlertTimeUTC_t, InitialEventTime_t, AssignedtoVaronis_b, MitreTacticName_s, IngestTime_t, Assets_s, FlaggedDataExposed_s, SensitiveDataExposed_s, PrivilegedAccountType_s, Type

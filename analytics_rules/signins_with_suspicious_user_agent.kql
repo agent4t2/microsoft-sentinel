@@ -1,0 +1,14 @@
+// Identifies signins from sources with suspicious user agents
+// Watchlist Source:  GitHub, awesome-lists /Lists /suspicious_http_user_agents_list.csv
+let sususeragent = _GetWatchlist("SusUserAgent")
+    | extend http_user_agent = tostring(http_user_agent)
+    | project http_user_agent, metadata_category, metadata_description;
+let ua_list = sususeragent
+    | project http_user_agent;
+SigninLogs
+| extend UserAgent = tostring(UserAgent)
+| where UserAgent in (ua_list)
+| project TimeGenerated, UserPrincipalName, Category, Identity, Resource, AppDisplayName, IPAddress, UserAgent
+| join kind=inner (sususeragent) on $left.UserAgent == $right.http_user_agent
+| project TimeGenerated, AppDisplayName, Name = Identity, Email = UserPrincipalName, Suspicious_User_Agent = UserAgent, Agent_Category = metadata_category, Agent_Description = metadata_description, Resource
+| order by TimeGenerated desc

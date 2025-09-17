@@ -1,0 +1,46 @@
+let lookback = 7d;
+let SeasonalHire = 
+    _GetWatchlist("seasonalhires")
+    | where Location startswith "REM"
+    | project SeasonalEmail;
+let CorpSalesSeasonal = 
+        IdentityInfo
+        | where isnotempty(AccountObjectId) 
+            and TimeGenerated >= datetime(2020-01-01 00:00:00)
+            and Department contains "Corp. Sales Seasonal"
+            and not(UserAccountControl contains "AccountDisabled")
+        | extend AcctInfo = dynamic_to_json(UserAccountControl)
+        | summarize arg_max(TimeGenerated, *) by AccountObjectId
+        | project AccountUPN;
+let ExcludedIPs =
+    _GetWatchlist("sitepubip")
+    | project SitePublicIP;
+let GlobalProtectIPs =
+    _GetWatchlist("gpgateway")
+    | project GPGatewayIP;
+let AzureCIDRs =
+    toscalar(
+        _GetWatchlist("azureip")
+        | project IP_CIDR
+        | summarize make_set(IP_CIDR)
+    );
+SigninLogs
+| where TimeGenerated > ago(lookback)
+| where UserPrincipalName has_any (SeasonalHire) or UserPrincipalName has_any (CorpSalesSeasonal)
+| where not(IPAddress in (ExcludedIPs))
+| where not(IPAddress in (GlobalProtectIPs))
+| where not(ipv4_is_in_any_range(IPAddress, AzureCIDRs))
+| summarize
+    CountryCodes = make_set(LocationDetails.countryOrRegion),
+    StateCodes = make_set(LocationDetails.state),
+    DeviceListDyn = make_set(DeviceDetail.deviceId),
+    UserCount    = dcount(UserPrincipalName),
+    UserListDyn  = make_set(UserPrincipalName)
+  by IPAddress
+| where UserCount between (2 .. 30)
+| extend CountryCode = strcat_array(CountryCodes, ",")
+| extend StateCode = strcat_array(StateCodes, ",")
+| extend DeviceList    = strcat_array(DeviceListDyn, ",")
+| extend UserList    = strcat_array(UserListDyn, ",")
+| project IPAddress, CountryCode, StateCode, UserCount, UserList, DeviceList
+| order by UserCount desc
