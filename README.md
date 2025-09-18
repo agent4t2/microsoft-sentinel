@@ -2,22 +2,12 @@
 
 This repository contains reusable content for Microsoft Sentinel, including:
 
-- **KQL queries** for hunting, detections, and troubleshooting.
-- **Parsers** for parsing log tables and displaying in a more usable format.
+- **KQL queries and Analytics Rules** for hunting, detections, and troubleshooting.
+- **Parsers and Functions** for parsing log tables and displaying in a more usable format.
 - **Workbooks** for visualizing security data and metrics.
-- **Logic Apps (Playbooks)** for incident response automation and integrations.
+- **Logic Apps (Playbooks) and Function Apps** for incident response automation and integrations.
 
 My goal is to share practical, production-tested content that others can quickly deploy and adapt to their Sentinel environments.
-
----
-
-## Repository Structure
-
-
-- **kql_queries/** – Saved queries organized by type or use case.  
-- **workbooks/** – ARM templates or JSON definitions for custom workbooks.  
-- **logic_apps/** – Sanitized templates for Sentinel playbooks and automations.  
-- **parsers/** – KQL Functions used to parse logs into a more friendly and usable format.
 
 
 ---
