@@ -16,4 +16,4 @@ My goal is to share practical, production-tested content that others can quickly
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/rich-fleming/microsoft-sentinel.git
+   git clone https://github.com/agent4t2/microsoft-sentinel.git
