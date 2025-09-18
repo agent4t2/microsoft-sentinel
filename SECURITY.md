@@ -14,7 +14,7 @@ The following table shows which versions of this repository are currently suppor
 If you discover a security vulnerability in this repository:
 
 1. **Do not open a public GitHub Issue** for the vulnerability.
-2. Instead, please email me directly at: **rafleming@gmail.com**  
+2. Instead, please email me directly. 
    Include as much detail as possible to help reproduce and understand the issue.
 3. You can expect an acknowledgment within 48 hours. I will provide an estimated timeline for remediation once the issue is confirmed.
 
