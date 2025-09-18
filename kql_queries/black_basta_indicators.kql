@@ -3,5 +3,5 @@ OfficeActivity
 | where TimeGenerated > ago(90d)
 | where OfficeWorkload =~ "MicrosoftTeams"
 | where UserId has_any("onmicrosoft.com")
-| where not(UserId has_any("snowflake","netrixllc","newengen","iqor","inspiro"))
+| where not(UserId has_any("iqor","inspiro"))
 | summarize count() by UserId
