@@ -10,7 +10,7 @@ import aiohttp
 from json import JSONDecodeError
 import traceback
 from io import BytesIO
-import zipfile   # <--- NEW IMPORT
+import zipfile
 
 from .sentinel_connector_async import AzureSentinelConnectorAsync
 
@@ -22,7 +22,7 @@ MAX_SCRIPT_EXEC_TIME_MINUTES = 50
 
 AZURE_STORAGE_CONNECTION_STRING = os.environ['AZURE_STORAGE_CONNECTION_STRING']
 CONTAINER_NAME = os.environ['CONTAINER_NAME']
-ARCHIVE_CONTAINER_NAME = os.environ['ARCHIVE_CONTAINER_NAME']  # <--- NEW ENV VARIABLE
+ARCHIVE_CONTAINER_NAME = os.environ['ARCHIVE_CONTAINER_NAME']
 WORKSPACE_ID = os.environ['WORKSPACE_ID']
 SHARED_KEY = os.environ['SHARED_KEY']
 LOG_TYPE = 'Fastly'
@@ -52,7 +52,7 @@ async def main(mytimer: func.TimerRequest):
         conn = AzureBlobStorageConnector(
             AZURE_STORAGE_CONNECTION_STRING, CONTAINER_NAME, ARCHIVE_CONTAINER_NAME, MAX_CONCURRENT_PROCESSING_FILES)
         container_client = conn._create_container_client()
-        archive_container_client = conn._create_archive_container_client()  # <--- NEW
+        archive_container_client = conn._create_archive_container_client()
         async with container_client, archive_container_client:
             async with aiohttp.ClientSession() as session:
                 cors = []
@@ -84,7 +84,7 @@ class AzureBlobStorageConnector:
     def __init__(self, conn_string, container_name, archive_container_name, max_concurrent_processing_fiiles=10):
         self.__conn_string = conn_string
         self.__container_name = container_name
-        self.__archive_container_name = archive_container_name   # <--- NEW
+        self.__archive_container_name = archive_container_name 
         self.semaphore = asyncio.Semaphore(max_concurrent_processing_fiiles)
         self.script_start_time = int(time.time())
         self.total_blobs = 0
@@ -100,7 +100,7 @@ class AzureBlobStorageConnector:
             logging.error(traceback.format_exc())
             return None
 
-    def _create_archive_container_client(self):   # <--- NEW
+    def _create_archive_container_client(self): 
         try:
             return ContainerClient.from_connection_string(
                 self.__conn_string, self.__archive_container_name,
