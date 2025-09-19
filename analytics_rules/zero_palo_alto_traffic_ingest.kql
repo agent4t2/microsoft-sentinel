@@ -53,4 +53,3 @@ LiveLogAnalysis
 | project LastChecked, Firewall, HArole, zero_bins, total_logs, baseline_avg_logs_per_bin, ingest_vs_baseline_pct, log_series, AlertDetails
 | order by ingest_vs_baseline_pct asc
 | where ingest_vs_baseline_pct < baseline_deviation_pct
-//| where HArole contains "primary"
