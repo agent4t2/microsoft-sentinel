@@ -2,6 +2,7 @@ let total_log_threshold = 1;
 let lookback = 1h;
 let step = 15m;
 let historical_window = 7d;
+let baseline_deviation_pct = 50;
 // Identify active firewalls to profile
 let PaloFW = CommonSecurityLog 
   | where TimeGenerated > ago(1d) 
@@ -43,8 +44,6 @@ LiveLogAnalysis
     FW contains "fw1", "Primary",
     FW contains "fw2", "Standby",
     "Unknown")
-// Final filtering logic
-//| where zero_bins >= 2 and baseline_avg_logs_per_bin > 0 and total_logs < (baseline_avg_logs_per_bin * (lookback / step) * 0.5)
 // Compute percent drop and prep alert JSON
 | extend 
     ingest_vs_baseline_pct = round(100.0 * total_logs / (baseline_avg_logs_per_bin * (lookback / step)), 1),
@@ -53,5 +52,5 @@ LiveLogAnalysis
 // Final output
 | project LastChecked, Firewall, HArole, zero_bins, total_logs, baseline_avg_logs_per_bin, ingest_vs_baseline_pct, log_series, AlertDetails
 | order by ingest_vs_baseline_pct asc
-| where ingest_vs_baseline_pct < 50
+| where ingest_vs_baseline_pct < baseline_deviation_pct
 //| where HArole contains "primary"
