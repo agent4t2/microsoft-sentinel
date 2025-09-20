@@ -2,13 +2,10 @@ let total_log_threshold = 1;
 let lookback = 1h;
 let step = 15m;
 let historical_window = 7d;
-let baseline_deviation_pct = 50;
-// Identify active firewalls to profile
 let PaloFW = CommonSecurityLog 
   | where TimeGenerated > ago(1d) 
   | where tolower(Computer) startswith "fw" or tolower(Computer) startswith "palo" or tolower(Computer) contains "ngfw"
   | summarize by Computer;
-// Build historical baseline per firewall (avg logs per bin)
 let FirewallBaseline = CommonSecurityLog
   | where TimeGenerated between (ago(historical_window) .. ago(1d))
   | where DeviceVendor == "Palo Alto Networks"
@@ -16,7 +13,6 @@ let FirewallBaseline = CommonSecurityLog
   | where Computer in (PaloFW)
   | summarize bin_count = count() by Computer, bin(TimeGenerated, step)
   | summarize baseline_avg_logs_per_bin = avg(bin_count) by Computer;
-// Evaluate recent log behavior per firewall
 let LiveLogAnalysis = CommonSecurityLog
   | where TimeGenerated > ago(lookback)
   | where DeviceVendor == "Palo Alto Networks"
@@ -31,7 +27,6 @@ let LiveLogAnalysis = CommonSecurityLog
       total_logs = sum(val), 
       log_series = make_list(val) 
     by Firewall = Computer;
-// Enrich with baseline and dynamic HArole tagging
 LiveLogAnalysis
 | join kind=leftouter (
     FirewallBaseline
@@ -44,12 +39,10 @@ LiveLogAnalysis
     FW contains "fw1", "Primary",
     FW contains "fw2", "Standby",
     "Unknown")
-// Compute percent drop and prep alert JSON
 | extend 
     ingest_vs_baseline_pct = round(100.0 * total_logs / (baseline_avg_logs_per_bin * (lookback / step)), 1),
     LastChecked = now(),
     AlertDetails = pack_all()
-// Final output
 | project LastChecked, Firewall, HArole, zero_bins, total_logs, baseline_avg_logs_per_bin, ingest_vs_baseline_pct, log_series, AlertDetails
 | order by ingest_vs_baseline_pct asc
 | where ingest_vs_baseline_pct < baseline_deviation_pct
