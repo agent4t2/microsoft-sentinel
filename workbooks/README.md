@@ -5,17 +5,6 @@ Workbooks provide rich, interactive dashboards for visualizing and analyzing sec
 
 ---
 
-## What’s Inside
-
-- **Oracle DBA Audit Workbook**  
-  - Helps visualize Oracle audit logs.  
-  - Includes filters for **SQL Action Groups** and **Oracle Host Groups** (e.g. DEV/QA, PROD, SOX, ALL).  
-  - Provides event breakdowns and detailed log exploration.  
-
-Additional workbooks can be added here as JSON templates.
-
----
-
 ## Customization
 
 Before deploying a workbook, replace the following placeholders in the JSON:
