@@ -1,0 +1,33 @@
+// Anomalous (Low) Ingest of GCP Audit Logs
+let total_log_threshold = 1;   // minimum number of logs to suppress noise
+let lookback = 1h;
+let step = 15m;
+let historical_window = 7d;
+let baseline_deviation_pct = 20;  // adjust this to suit your threshold
+// Build historical baseline (avg logs per bin across all data)
+let Baseline = GCPAuditLogs
+  | where TimeGenerated between (ago(historical_window) .. ago(1d))
+  | summarize bin_count = count() by bin(TimeGenerated, step)
+  | summarize baseline_avg_logs_per_bin = avg(bin_count);
+// Evaluate recent log behavior (whole table)
+let LiveLogAnalysis = GCPAuditLogs
+  | where TimeGenerated > ago(lookback)
+  | make-series log_count = count() on TimeGenerated from ago(lookback + step) to now() step step
+  | extend filtered_log_count = array_slice(log_count, 1, array_length(log_count))
+  | mv-expand val = filtered_log_count
+  | extend val = toint(val)
+  | summarize 
+      zero_bins = countif(val == 0), 
+      total_logs = sum(val), 
+      log_series = make_list(val);
+// Enrich with baseline and calculate deviation
+LiveLogAnalysis
+| extend baseline_avg_logs_per_bin = coalesce(toscalar(Baseline), todouble(1))
+| extend ingest_vs_baseline_pct = round(100.0 * total_logs / (baseline_avg_logs_per_bin * (lookback / step)), 1)
+| extend LastChecked = now(), AlertDetails = pack_all()
+// Fire if below baseline OR below threshold
+| where ingest_vs_baseline_pct < baseline_deviation_pct or total_logs < total_log_threshold
+// Final output
+| project LastChecked, zero_bins, total_logs, baseline_avg_logs_per_bin, ingest_vs_baseline_pct, log_series, AlertDetails
+| order by ingest_vs_baseline_pct asc
+
