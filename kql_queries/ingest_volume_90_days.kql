@@ -1,7 +1,7 @@
 // Get daily totals
 let DailyData =
     Usage
-    | where TimeGenerated between (startofday(ago(60d)) .. endofday(ago(1d)))
+    | where TimeGenerated between (startofday(ago(90d)) .. endofday(ago(1d)))
     | where IsBillable == true
     | summarize DailyGB = sum(Quantity) / 1024 by bin(TimeGenerated, 1d);
 // Flat 60-day average as a scalar
@@ -10,7 +10,7 @@ let FlatAvg = toscalar(DailyData | summarize avg(DailyGB));
 let SeriesData =
     DailyData
     | make-series DailyGB = avg(DailyGB) on TimeGenerated 
-        from startofday(ago(60d)) to endofday(ago(1d)) step 1d
+        from startofday(ago(90d)) to endofday(ago(1d)) step 1d
     | extend RollingAvg = series_fir(DailyGB, repeat(1.0/7, 7))
     | mv-expand TimeGenerated to typeof(datetime), 
                 DailyGB to typeof(real), 
