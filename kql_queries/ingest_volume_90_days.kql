@@ -4,9 +4,9 @@ let DailyData =
     | where TimeGenerated between (startofday(ago(90d)) .. endofday(ago(1d)))
     | where IsBillable == true
     | summarize DailyGB = sum(Quantity) / 1024 by bin(TimeGenerated, 1d);
-// Flat 60-day average as a scalar
+// Flat 90-day average as a scalar
 let FlatAvg = toscalar(DailyData | summarize avg(DailyGB));
-// Build time series with rolling avg
+// Build time series with rolling avg + anomaly flags
 let SeriesData =
     DailyData
     | make-series DailyGB = avg(DailyGB) on TimeGenerated 
@@ -18,14 +18,11 @@ let SeriesData =
     | serialize
     | extend RowNumber = row_number()
     | where RowNumber > 6   // drop first 6 rows (partial averages)
-    | extend FlatAvg = FlatAvg;
-// Anomalies: ±20% from rolling average
-let Anomalies =
-    SeriesData
-    | where DailyGB > RollingAvg * 1.2 or DailyGB < RollingAvg * 0.8
-    | project TimeGenerated, AnomalyValue = DailyGB;
-// Combine for visualization
+    | extend FlatAvg = FlatAvg
+    | extend AnomalyAbove = iif(DailyGB > RollingAvg * 1.2, DailyGB, real(null))
+    | extend AnomalyBelow = iif(DailyGB < RollingAvg * 0.8, DailyGB, real(null))
+    | extend IsAnomaly = iif(isnotnull(AnomalyAbove) or isnotnull(AnomalyBelow), true, false);
+// Final dataset
 SeriesData
-| project TimeGenerated, DailyGB, RollingAvg, FlatAvg
-| join kind=leftouter (Anomalies) on TimeGenerated
+| project TimeGenerated, DailyGB, RollingAvg, FlatAvg, AnomalyAbove, AnomalyBelow, IsAnomaly
 | render timechart
