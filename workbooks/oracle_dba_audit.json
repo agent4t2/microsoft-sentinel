@@ -1,0 +1,209 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "Please Note: Data in this workbook is updated hourly. Use the **SQL Action Group** and **Oracle Host Group** dropdowns to filter Oracle audit activity by category."
+      },
+      "name": "text - 3"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+            "name": "TimeRange",
+            "type": 4,
+            "isRequired": true,
+            "value": {
+              "durationMs": 86400000
+            },
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 300000
+                },
+                {
+                  "durationMs": 900000
+                },
+                {
+                  "durationMs": 1800000
+                },
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 14400000
+                },
+                {
+                  "durationMs": 43200000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 172800000
+                },
+                {
+                  "durationMs": 259200000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 1209600000
+                },
+                {
+                  "durationMs": 2419200000
+                },
+                {
+                  "durationMs": 2592000000
+                },
+                {
+                  "durationMs": 5184000000
+                },
+                {
+                  "durationMs": 7776000000
+                }
+              ],
+              "allowCustom": true
+            }
+          },
+          {
+            "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+            "version": "KqlParameterItem/1.0",
+            "name": "_OracleHostGroup",
+            "label": "Oracle Host Group",
+            "type": 2,
+            "isRequired": true,
+            "query": "datatable(label:string)[\"DEV/QA\",\"PROD\",\"SOX\",\"ALL\"] | project label",
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces",
+            "value": "PROD"
+          },
+          {
+            "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+            "name": "_OracleDB",
+            "label": "Oracle Database",
+            "type": 2,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "oraudit_CL\n| where isnotempty(DBNAME)\n| summarize count() by tostring(DBNAME)\n| project DBNAME\n| order by DBNAME asc",
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "selectAllValue": "All",
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 0
+            },
+            "timeContextFromParameter": "TimeRange",
+            "defaultValue": "value::all",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces",
+            "value": [
+              "value::all"
+            ]
+          },
+          {
+            "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+            "name": "_OracleUser",
+            "label": "Oracle DB User",
+            "type": 2,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "oraudit_CL\n| summarize count() by tostring(DBUSERNAME)\n| project DBUSERNAME\n| order by DBUSERNAME asc",
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "selectAllValue": "All",
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 0
+            },
+            "timeContextFromParameter": "TimeRange",
+            "defaultValue": "value::all",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces"
+          },
+          {
+            "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+            "version": "KqlParameterItem/1.0",
+            "name": "_OracleActionGroup",
+            "label": "SQL Action Group",
+            "type": 2,
+            "isRequired": true,
+            "query": "datatable(label:string)[\"Logon\",\"DML/DDL\",\"UserMgmt\",\"All\",\"All-NoSelect\"] | project label",
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces",
+            "value": "DML/DDL"
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "parameters - 5"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let ActionGroup = '{_OracleActionGroup}';\nlet ActionList = case(\n  ActionGroup == 'Logon', dynamic(['LOGON', 'LOGOFF', 'LOGOFF BY CLEANUP']),\n  ActionGroup == 'DML/DDL', dynamic(['INSERT', 'UPDATE', 'DELETE', 'CREATE TABLE', 'CREATE USER', 'ALTER TABLE', 'ALTER USER', 'DROP TABLE', 'DROP USER', 'TRUNCATE TABLE']),\n  ActionGroup == 'UserMgmt', dynamic(['CREATE USER', 'ALTER USER', 'DROP USER', 'GRANT']),\n  ActionGroup == 'All-NoSelect', dynamic(['LOGON','LOGOFF','LOGOFF BY CLEANUP','INSERT','UPDATE','DELETE','CREATE TABLE','CREATE USER','ALTER TABLE','ALTER USER','DROP TABLE','DROP USER','TRUNCATE TABLE','GRANT']),\n  ActionGroup == 'All', dynamic(['LOGON','LOGOFF','LOGOFF BY CLEANUP','SELECT','INSERT','UPDATE','DELETE','CREATE TABLE','CREATE USER','ALTER TABLE','ALTER USER','DROP TABLE','DROP USER','TRUNCATE TABLE','GRANT']),\n  dynamic([])\n);\nlet HostGroup = '{_OracleHostGroup}';\nlet HostList = case(\n  HostGroup == 'DEV/QA', dynamic(['dbbocoblkdev01','dbatlaze2q01','dbatlaze2d01','ebscnv','ebscnvweb','dbbocoqa12','wisfinazeaq01','wisfinazead01']),\n  HostGroup == 'PROD', dynamic(['dbatlaze2p01','dbfinazeap01','dbblksfnyprod01','dbsfnyprod12','ebsprod','dbatlaze2p17','micsenlogaze2d01']),\n  HostGroup == 'SOX', dynamic(['dbfinazeap01','ebsprod','micsenlogaze2d01']),\n  HostGroup == 'ALL', dynamic([]),\n  dynamic([])\n);\noraudit_CL\n| where array_length(HostList) == 0 or Computer in (HostList)\n| where '{_OracleDB:lable}' == 'All' or DBNAME in ({_OracleDB})\n| where '{_OracleUser:lable}' == 'All' or DBUSERNAME in ({_OracleUser})\n| where ACTION_NAME in (ActionList)\n| summarize count() by bin(TimeGenerated, 10m), tostring(ACTION_NAME)",
+        "size": 1,
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "barchart",
+        "chartSettings": {
+          "showLegend": true
+        }
+      },
+      "name": "query - 2"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let ActionGroup = '{_OracleActionGroup}';\nlet ActionList = case(\n ActionGroup == 'Logon', dynamic(['LOGON', 'LOGOFF', 'LOGOFF BY CLEANUP']),\n  ActionGroup == 'DML/DDL', dynamic(['INSERT', 'UPDATE', 'DELETE', 'CREATE TABLE', 'CREATE USER', 'ALTER TABLE', 'ALTER USER', 'DROP TABLE', 'DROP USER', 'TRUNCATE TABLE']),\n  ActionGroup == 'UserMgmt', dynamic(['CREATE USER', 'ALTER USER', 'DROP USER', 'GRANT']),\n  ActionGroup == 'All-NoSelect', dynamic(['LOGON','LOGOFF','LOGOFF BY CLEANUP','INSERT','UPDATE','DELETE','CREATE TABLE','CREATE USER','ALTER TABLE','ALTER USER','DROP TABLE','DROP USER','TRUNCATE TABLE','GRANT']),\n  ActionGroup == 'All', dynamic(['LOGON','LOGOFF','LOGOFF BY CLEANUP','SELECT','INSERT','UPDATE','DELETE','CREATE TABLE','CREATE USER','ALTER TABLE','ALTER USER','DROP TABLE','DROP USER','TRUNCATE TABLE','GRANT']),\n  dynamic([])\n);\nlet HostGroup = '{_OracleHostGroup}';\nlet HostList = case(\n  HostGroup == 'DEV/QA', dynamic(['dbbocoblkdev01','dbatlaze2q01','dbatlaze2d01','ebscnv','ebscnvweb','dbbocoqa12','wisfinazeaq01','wisfinazead01']),\n  HostGroup == 'PROD', dynamic(['dbatlaze2p01','dbfinazeap01','dbblksfnyprod01','dbsfnyprod12','ebsprod','dbatlaze2p17','micsenlogaze2d01']),\n  HostGroup == 'SOX', dynamic(['dbfinazeap01','ebsprod','micsenlogaze2d01']),\n  HostGroup == 'ALL', dynamic([]),\n  dynamic([])\n);\noraudit_CL\n| where array_length(HostList) == 0 or Computer in (HostList)\n| where '{_OracleDB:lable}' == 'All' or DBNAME in ({_OracleDB})\n| where '{_OracleUser:lable}' == 'All' or DBUSERNAME in ({_OracleUser})\n| where ACTION_NAME in (ActionList)\n| extend auth_raw = tostring(AUTHENTICATION_TYPE)\n| extend \n    AuthType = extract(@\"\\(TYPE=\\((.*?)\\)\\)\", 1, auth_raw),\n    Protocol = extract(@\"\\(PROTOCOL=(.*?)\\)\", 1, auth_raw),\n    ClientIP = extract(@\"\\(HOST=(.*?)\\)\", 1, auth_raw),\n    Port = extract(@\"\\(PORT=(.*?)\\)\", 1, auth_raw),\n    ClientAddress = iif(auth_raw has \"(CLIENT ADDRESS=())\", \"Empty\", \"Present\"),\n    VMName = extract(@\"([^/]+)$\", 1, _ResourceId)\n| project EventTime = EVENT_TIMESTAMP, VMName, Database = DBNAME, User = DBUSERNAME, SQL_TEXT, Action = ACTION_NAME, Object = OBJECT_NAME, Schema = OBJECT_SCHEMA, TRANSACTION_ID, User_Host = USERHOST, OS_User = OS_USERNAME, Client = CLIENT_PROGRAM_NAME, Host = Computer, AuthType, ClientIP, Protocol, Port\n| order by EventTime desc",
+        "size": 2,
+        "showAnalytics": true,
+        "title": "Oracle Unified Audit Log Events",
+        "timeContextFromParameter": "TimeRange",
+        "showRefreshButton": true,
+        "showExportToExcel": true,
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "gridSettings": {
+          "rowLimit": 10000,
+          "filter": true
+        }
+      },
+      "name": "Oracle Unified Audit Log Events"
+    }
+  ],
+  "fallbackResourceIds": [
+    "/subscriptions/PLACEHOLDER_SUBSCRIPTION_ID/resourcegroups/18f-useast-infosec-sentinel/providers/microsoft.operationalinsights/workspaces/18f-useast-infosec-sentinel-la"
+  ],
+  "fromTemplateId": "sentinel-UserWorkbook",
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

@@ -1,0 +1,190 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "type": 4,
+            "isRequired": true,
+            "value": {
+              "durationMs": 43200000
+            },
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 300000
+                },
+                {
+                  "durationMs": 900000
+                },
+                {
+                  "durationMs": 1800000
+                },
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 14400000
+                },
+                {
+                  "durationMs": 43200000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 172800000
+                },
+                {
+                  "durationMs": 259200000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 1209600000
+                },
+                {
+                  "durationMs": 2419200000
+                },
+                {
+                  "durationMs": 2592000000
+                },
+                {
+                  "durationMs": 5184000000
+                },
+                {
+                  "durationMs": 7776000000
+                }
+              ],
+              "allowCustom": true
+            }
+          },
+          {
+            "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+            "version": "KqlParameterItem/1.0",
+            "name": "EmployeeName",
+            "label": "Employee Name",
+            "type": 2,
+            "description": "Choose employee name.",
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "BrivoEvents_CL\n| distinct actor_name_s\n| order by actor_name_s asc ",
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "selectAllValue": "All",
+              "showDefault": false
+            },
+            "timeContext": {
+              "durationMs": 0
+            },
+            "timeContextFromParameter": "TimeRange",
+            "defaultValue": "value::all",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces",
+            "value": [
+              "value::all"
+            ]
+          },
+          {
+            "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+            "version": "KqlParameterItem/1.0",
+            "name": "SiteName",
+            "label": "Site Name",
+            "type": 2,
+            "description": "Choose site names",
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "query": "BrivoEvents_CL\n| where TimeGenerated > ago(7d)\n| distinct site_name_s\n| order by site_name_s asc",
+            "typeSettings": {
+              "additionalResourceOptions": [
+                "value::all"
+              ],
+              "selectAllValue": "All",
+              "showDefault": false
+            },
+            "defaultValue": "value::all",
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces",
+            "value": [
+              "value::all"
+            ]
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "parameters - 5"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "BrivoEvents_CL\n| where \"{EmployeeName:lable}\"==\"All\" or actor_name_s in ({EmployeeName})\n| where \"{SiteName:lable}\"==\"All\" or site_name_s in ({SiteName})\n| extend RawEmployeeNumber = coalesce(empid_s, medeeid_s, \"missing\")\n| extend EmployeeNumber = iif(RawEmployeeNumber == \"missing\", \"missing\", substring(strcat(\"000000\", tostring(RawEmployeeNumber)), -6, 6))\n| join kind=leftouter (\n    IdentityInfo\n    | where TimeGenerated > ago(90d)\n    | extend EmployeeNumber = substring(strcat(\"000000\", tostring(EmployeeId)), -6, 6)\n    | summarize arg_max(TimeGenerated, *) by EmployeeNumber\n    | project EmployeeNumber, AccountUPN, AccountDisplayName\n) on EmployeeNumber\n| project Timestamp = timestamp_t, \n          EmployeeNumber, \n          EmployeeName = actor_name_s, \n          Site = site_name_s, \n          Door = door_name_s, \n          Result = result_s,\n          Email = AccountUPN,\n          AccountName = AccountDisplayName\n| order by Timestamp desc\n| summarize EventCount = count() by Site, bin(Timestamp, 5m)\n| render timechart ",
+        "size": 1,
+        "title": "Events by Site",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "timechart",
+        "chartSettings": {
+          "showLegend": true
+        }
+      },
+      "name": "query - 2"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "BrivoEvents_CL\r\n| where \"{EmployeeName:lable}\"==\"All\" or actor_name_s in ({EmployeeName})\r\n| where \"{SiteName:lable}\"==\"All\" or site_name_s in ({SiteName})\r\n| extend RawEmployeeNumber = coalesce(empid_s, medeeid_s, \"missing\")\r\n| extend EmployeeNumber = iif(RawEmployeeNumber == \"missing\", \"missing\", substring(strcat(\"000000\", tostring(RawEmployeeNumber)), -6, 6))\r\n| join kind=leftouter (\r\n    IdentityInfo\r\n    | where TimeGenerated > ago(90d)\r\n    | extend EmployeeNumber = substring(strcat(\"000000\", tostring(EmployeeId)), -6, 6)\r\n    | summarize arg_max(TimeGenerated, *) by EmployeeNumber\r\n    | project EmployeeNumber, AccountUPN, AccountDisplayName\r\n) on EmployeeNumber\r\n| project Timestamp = timestamp_t, \r\n          EmployeeNumber, \r\n          EmployeeName = actor_name_s, \r\n          Site = site_name_s, \r\n          Door = door_name_s, \r\n          Result = result_s,\r\n          Email = AccountUPN,\r\n          AccountName = AccountDisplayName\r\n| order by Timestamp desc",
+        "size": 2,
+        "showAnalytics": true,
+        "title": "Brivo Access Events",
+        "showRefreshButton": true,
+        "showExportToExcel": true,
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "gridSettings": {
+          "rowLimit": 10000,
+          "filter": true
+        }
+      },
+      "name": "Brivo Access Events"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "// Monthly Attendance based on Brivo Badge Events\n// Dynamically evaluates the full current calendar month\nlet today = startofday(now());\nlet startTime = startofmonth(today);        // 1st of current month\nlet endTime = startofmonth(startTime + 32d); // safely lands in next month, then gets its 1st\nlet numDays = datetime_diff(\"day\", endTime, startTime);\nlet ignorenames = dynamic([\"contractor\",\"first step\",\"vending\",\"cleaners\",\"temporary\",\"crown\",\"employee\"]);\nlet ignoreids = dynamic([\"CONSULTANT\",\"TEMP\",\"ULTANT\",\"UNTEER\",\"RACTOR\",\"CURITY\",\"farms\",\"00TEMP\"]);\nlet ignoreemails = dynamic([\"iqo-\",\"spi-\",\"krbtgt\"]);\n// Create calendar day map: 1 to 31, capped\nlet CalendarDays = range Day from 1 to 31 step 1\n| extend Date = startTime + (Day - 1) * 1d;\n// Base badge data for presence by day\nlet baseData = BrivoEvents_CL\n| where TimeGenerated between (startTime .. endTime)\n| extend UserId = tostring(user_id_s), Day = datetime_diff(\"day\", TimeGenerated, startTime) + 1\n| where Day between (1 .. 31)\n| summarize Present = count(), DisplayName = any(actor_name_s) by UserId, Day\n| extend Present = 1;\n// List of unique people seen that month\nlet peopleList = BrivoEvents_CL\n| where TimeGenerated between (startTime .. endTime)\n| summarize DisplayName = any(actor_name_s) by UserId = tostring(user_id_s)\n| extend join_key = 1;\n// Expand every user to every calendar day\nlet allDays = CalendarDays | extend join_key = 1;\nlet fullMatrix = peopleList\n| join kind=inner (allDays) on join_key\n| project UserId, DisplayName, Day;\n// Pad with presence data\nlet padded = fullMatrix\n| join kind=leftouter (baseData) on UserId, Day\n| extend Present = coalesce(Present, 0);\n// Final tally: one column per day (1\u201331), with MonthlyTally\nlet withTallies = padded\n| summarize\n    Day1 = maxif(Present, Day == 1),  Day2 = maxif(Present, Day == 2),  Day3 = maxif(Present, Day == 3),\n    Day4 = maxif(Present, Day == 4),  Day5 = maxif(Present, Day == 5),  Day6 = maxif(Present, Day == 6),\n    Day7 = maxif(Present, Day == 7),  Day8 = maxif(Present, Day == 8),  Day9 = maxif(Present, Day == 9),\n    Day10 = maxif(Present, Day == 10), Day11 = maxif(Present, Day == 11), Day12 = maxif(Present, Day == 12),\n    Day13 = maxif(Present, Day == 13), Day14 = maxif(Present, Day == 14), Day15 = maxif(Present, Day == 15),\n    Day16 = maxif(Present, Day == 16), Day17 = maxif(Present, Day == 17), Day18 = maxif(Present, Day == 18),\n    Day19 = maxif(Present, Day == 19), Day20 = maxif(Present, Day == 20), Day21 = maxif(Present, Day == 21),\n    Day22 = maxif(Present, Day == 22), Day23 = maxif(Present, Day == 23), Day24 = maxif(Present, Day == 24),\n    Day25 = maxif(Present, Day == 25), Day26 = maxif(Present, Day == 26), Day27 = maxif(Present, Day == 27),\n    Day28 = maxif(Present, Day == 28), Day29 = maxif(Present, Day == 29), Day30 = maxif(Present, Day == 30),\n    Day31 = maxif(Present, Day == 31)\n  by UserId, DisplayName\n| extend MonthlyTally =\n    Day1 + Day2 + Day3 + Day4 + Day5 + Day6 + Day7 + Day8 + Day9 + Day10 +\n    Day11 + Day12 + Day13 + Day14 + Day15 + Day16 + Day17 + Day18 + Day19 + Day20 +\n    Day21 + Day22 + Day23 + Day24 + Day25 + Day26 + Day27 + Day28 + Day29 + Day30 + Day31\n| extend MonthStartDate = format_datetime(startTime, \"yyyy-MM-dd\");\n// Employee ID mapping (same logic)\nlet idMap = BrivoEvents_CL\n| where TimeGenerated between (startTime .. endTime)\n| extend UserId = tostring(user_id_s)\n| summarize arg_max(TimeGenerated, empid_s, medeeid_s) by UserId\n| extend EmployeeNumber = iif(isnull(empid_s) and isnull(medeeid_s), \"missing\", substring(strcat(\"000000\", tostring(coalesce(empid_s, medeeid_s))), -6, 6));\n// Identity info join\nlet identityLookup = IdentityInfo\n| where TimeGenerated > ago(90d)\n| extend EmployeeNumber = substring(strcat(\"000000\", tostring(EmployeeId)), -6, 6)\n| summarize arg_max(TimeGenerated, AccountUPN, AccountDisplayName) by EmployeeNumber;\n// Final result\nwithTallies\n| join kind=leftouter (idMap) on UserId\n| join kind=leftouter (identityLookup) on EmployeeNumber\n| project Name = tolower(DisplayName), EmployeeNumber, Email = AccountUPN, MonthStartDate, MonthlyTally,\n          Day1, Day2, Day3, Day4, Day5, Day6, Day7, Day8, Day9, Day10,\n          Day11, Day12, Day13, Day14, Day15, Day16, Day17, Day18, Day19, Day20,\n          Day21, Day22, Day23, Day24, Day25, Day26, Day27, Day28, Day29, Day30, Day31\n//Filter Non-Employees from Results\n| where not(EmployeeNumber has_any (ignoreids))\n| where not(Name has_any (ignorenames))\n| where not(Email has_any (ignoreemails))\n| order by Name asc\n\n",
+        "size": 0,
+        "title": "Badge Swipe Tally",
+        "showExportToExcel": true,
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "gridSettings": {
+          "rowLimit": 3000
+        }
+      },
+      "name": "query - 3"
+    }
+  ],
+  "fallbackResourceIds": [
+    "/subscriptions/PLACEHOLDER_SUBSCRIPTION_ID/resourcegroups/18f-useast-infosec-sentinel/providers/microsoft.operationalinsights/workspaces/18f-useast-infosec-sentinel-la"
+  ],
+  "fromTemplateId": "sentinel-UserWorkbook",
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

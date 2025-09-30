@@ -1,0 +1,988 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+            "version": "KqlParameterItem/1.0",
+            "name": "Tab",
+            "type": 11,
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "jsonData": "[\"Overview\", \"Server Detail\", \"Host Group Detail\", \"Tab 04\"]",
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "value": "Host Group Detail"
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "Tab Selector"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 9,
+            "content": {
+              "version": "KqlParameterItem/1.0",
+              "parameters": [
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "TimeRange",
+                  "type": 4,
+                  "isRequired": true,
+                  "typeSettings": {
+                    "selectableValues": [
+                      {
+                        "durationMs": 3600000
+                      },
+                      {
+                        "durationMs": 14400000
+                      },
+                      {
+                        "durationMs": 43200000
+                      },
+                      {
+                        "durationMs": 86400000
+                      },
+                      {
+                        "durationMs": 172800000
+                      },
+                      {
+                        "durationMs": 259200000
+                      },
+                      {
+                        "durationMs": 604800000
+                      }
+                    ],
+                    "allowCustom": true
+                  },
+                  "timeContext": {
+                    "durationMs": 86400000
+                  },
+                  "value": {
+                    "durationMs": 86400000
+                  }
+                }
+              ],
+              "style": "pills",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces"
+            },
+            "name": "parameters - 1"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let TopComputers = Perf \r\n| where CounterName == \"% Processor Time\"\r\n| where tolower(InstanceName) == \"_total\" or tolower(InstanceName) == \"total\"\r\n| where ObjectName == \"Processor\" or ObjectName == \"Processor Information\"\r\n| summarize AggregatedValue = avg(CounterValue) by bin(TimeGenerated, 15m), Computer\r\n| sort by AggregatedValue desc \r\n| limit 10  \r\n| project Computer; \r\nPerf \r\n| where CounterName == \"% Processor Time\"\r\n| where tolower(InstanceName) == \"_total\" or tolower(InstanceName) == \"total\"\r\n| where ObjectName == \"Processor\" or ObjectName == \"Processor Information\"\r\n| summarize AggregatedValue = avg(CounterValue) by bin(TimeGenerated, 15m), Computer | render timechart",
+              "size": 0,
+              "aggregation": 3,
+              "title": "Top CPU % Usage by Computer",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "chartSettings": {
+                "showMetrics": false,
+                "showLegend": true
+              }
+            },
+            "customWidth": "50",
+            "name": "query - 0"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let TopComputers = Perf\r\n| where TimeGenerated >= {TimeRange:start} and TimeGenerated <= {TimeRange:end}\r\n| where CounterName == \"% Processor Time\"\r\n| where tolower(InstanceName) == \"_total\" or tolower(InstanceName) == \"total\"\r\n| where ObjectName == \"Processor\" or ObjectName == \"Processor Information\"\r\n| summarize AggregatedValue = avg(CounterValue) by Computer\r\n| top 10 by AggregatedValue desc\r\n| project Computer, AggregatedValue;\r\nPerf\r\n| where TimeGenerated >= {TimeRange:start} and TimeGenerated <= {TimeRange:end}\r\n| where CounterName == \"% Processor Time\"\r\n| where tolower(InstanceName) == \"_total\" or tolower(InstanceName) == \"total\"\r\n| where ObjectName == \"Processor\" or ObjectName == \"Processor Information\"\r\n| where Computer in (TopComputers)\r\n| make-series Trend = round(avg(CounterValue), 2) default=0 on TimeGenerated in range({TimeRange:start}, {TimeRange:end}, {TimeRange:grain}) by Computer\r\n| project Computer, ['Trend (avg)'] = Trend\r\n| join kind=inner (TopComputers) on Computer\r\n| project-away Computer1\r\n| order by tolower(Computer) asc\r\n",
+              "size": 0,
+              "aggregation": 3,
+              "title": "Top CPU % Usage by Computer",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Trend (avg)",
+                    "formatter": 10,
+                    "formatOptions": {
+                      "palette": "blue"
+                    }
+                  },
+                  {
+                    "columnMatch": ".*",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "min": 0,
+                      "palette": "blue"
+                    }
+                  }
+                ],
+                "sortBy": [
+                  {
+                    "itemKey": "$gen_heatmap_.*_2",
+                    "sortOrder": 2
+                  }
+                ]
+              },
+              "sortBy": [
+                {
+                  "itemKey": "$gen_heatmap_.*_2",
+                  "sortOrder": 2
+                }
+              ]
+            },
+            "customWidth": "50",
+            "name": "query - 0 - Copy"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let TopComputers = Perf \r\n| where (ObjectName == \"Memory\" and CounterName == \"% Used Memory\" and (InstanceName == \"Memory\" or InstanceName == \"total\")) or (ObjectName == \"Memory\" and CounterName == \"% Committed Bytes In Use\")\r\n| summarize AggregatedValue = avg(CounterValue) by Computer \r\n| sort by AggregatedValue desc \r\n| limit 10  \r\n| project Computer; \r\nPerf\r\n| where Computer in (TopComputers) \r\n| where (ObjectName == \"Memory\" and CounterName == \"% Used Memory\" and (InstanceName == \"Memory\" or InstanceName == \"total\")) or (ObjectName == \"Memory\" and CounterName == \"% Committed Bytes In Use\")\r\n| summarize AggregatedValue = avg(CounterValue) by Computer, bin(TimeGenerated, 5m) | render timechart",
+              "size": 0,
+              "aggregation": 3,
+              "title": "Top Memory % Usage by Computer",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "linechart"
+            },
+            "name": "query - 0 - Copy"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let TopComputers = Perf \r\n| where CounterName == '% Disk Time'\r\n| summarize AggregatedValue = avg(CounterValue) by Computer \r\n| sort by AggregatedValue desc \r\n| limit 10  \r\n| project Computer; \r\nPerf \r\n| where CounterName == '% Disk Time' and Computer in (TopComputers) \r\n| summarize AggregatedValue = avg(CounterValue) by Computer, bin(TimeGenerated, 5m) | render timechart",
+              "size": 0,
+              "aggregation": 3,
+              "title": "Top Disk Time by Computer",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "linechart"
+            },
+            "name": "query - 0 - Copy - Copy"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "Tab",
+        "comparison": "isEqualTo",
+        "value": "Overview"
+      },
+      "name": "Group-Overview"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 9,
+            "content": {
+              "version": "KqlParameterItem/1.0",
+              "parameters": [
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "TimeRange",
+                  "type": 4,
+                  "isRequired": true,
+                  "value": {
+                    "durationMs": 14400000
+                  },
+                  "typeSettings": {
+                    "selectableValues": [
+                      {
+                        "durationMs": 300000,
+                        "createdTime": "2018-10-25T18:51:46.917Z",
+                        "isInitialTime": false,
+                        "grain": 1,
+                        "useDashboardTimeRange": false
+                      },
+                      {
+                        "durationMs": 900000,
+                        "createdTime": "2018-10-25T18:51:46.917Z",
+                        "isInitialTime": false,
+                        "grain": 1,
+                        "useDashboardTimeRange": false
+                      },
+                      {
+                        "durationMs": 1800000,
+                        "createdTime": "2018-10-25T18:51:46.917Z",
+                        "isInitialTime": false,
+                        "grain": 1,
+                        "useDashboardTimeRange": false
+                      },
+                      {
+                        "durationMs": 3600000,
+                        "createdTime": "2018-10-25T18:51:46.917Z",
+                        "isInitialTime": false,
+                        "grain": 1,
+                        "useDashboardTimeRange": false
+                      },
+                      {
+                        "durationMs": 14400000,
+                        "createdTime": "2018-10-25T18:51:46.918Z",
+                        "isInitialTime": false,
+                        "grain": 1,
+                        "useDashboardTimeRange": false
+                      },
+                      {
+                        "durationMs": 43200000,
+                        "createdTime": "2018-10-25T18:51:46.918Z",
+                        "isInitialTime": false,
+                        "grain": 1,
+                        "useDashboardTimeRange": false
+                      },
+                      {
+                        "durationMs": 86400000,
+                        "createdTime": "2018-10-25T18:51:46.918Z",
+                        "isInitialTime": false,
+                        "grain": 1,
+                        "useDashboardTimeRange": false
+                      },
+                      {
+                        "durationMs": 172800000,
+                        "createdTime": "2018-10-25T18:51:46.918Z",
+                        "isInitialTime": false,
+                        "grain": 1,
+                        "useDashboardTimeRange": false
+                      },
+                      {
+                        "durationMs": 259200000,
+                        "createdTime": "2018-10-25T18:51:46.918Z",
+                        "isInitialTime": false,
+                        "grain": 1,
+                        "useDashboardTimeRange": false
+                      },
+                      {
+                        "durationMs": 604800000,
+                        "createdTime": "2018-10-25T18:51:46.918Z",
+                        "isInitialTime": false,
+                        "grain": 1,
+                        "useDashboardTimeRange": false
+                      },
+                      {
+                        "durationMs": 1209600000,
+                        "createdTime": "2018-10-25T18:51:46.918Z",
+                        "isInitialTime": false,
+                        "grain": 1,
+                        "useDashboardTimeRange": false
+                      },
+                      {
+                        "durationMs": 2592000000,
+                        "createdTime": "2018-10-25T18:51:46.919Z",
+                        "isInitialTime": false,
+                        "grain": 1,
+                        "useDashboardTimeRange": false
+                      },
+                      {
+                        "durationMs": 5184000000,
+                        "createdTime": "2018-10-25T18:51:46.919Z",
+                        "isInitialTime": false,
+                        "grain": 1,
+                        "useDashboardTimeRange": false
+                      },
+                      {
+                        "durationMs": 7776000000,
+                        "createdTime": "2018-10-25T18:51:46.919Z",
+                        "isInitialTime": false,
+                        "grain": 1,
+                        "useDashboardTimeRange": false
+                      }
+                    ],
+                    "allowCustom": true
+                  }
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Workspace",
+                  "type": 5,
+                  "isRequired": true,
+                  "multiSelect": true,
+                  "quote": "'",
+                  "delimiter": ",",
+                  "typeSettings": {
+                    "resourceTypeFilter": {
+                      "microsoft.operationalinsights/workspaces": true
+                    },
+                    "additionalResourceOptions": [
+                      "value::all"
+                    ],
+                    "showDefault": false
+                  },
+                  "jsonData": "[\r\n    {\"value\":\"/subscriptions/PLACEHOLDER_SUBSCRIPTION_ID/resourcegroups/18f-useast-infosec-sentinel/providers/microsoft.operationalinsights/workspaces/18f-useast-infosec-sentinel-la\", \"Label\":\"18F-USEast-Infosec-Sentinel-LA\"}\r\n]",
+                  "defaultValue": "value::all",
+                  "value": [
+                    "/subscriptions/PLACEHOLDER_SUBSCRIPTION_ID/resourcegroups/18f-useast-infosec-sentinel/providers/microsoft.operationalinsights/workspaces/18f-useast-infosec-sentinel-la"
+                  ]
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "VirtualMachines",
+                  "type": 2,
+                  "isRequired": true,
+                  "multiSelect": true,
+                  "quote": "'",
+                  "delimiter": ",",
+                  "query": "let computers = Perf\r\n    | summarize by Computer\r\n    | project Computer = tolower(Computer), Label = tolower(Computer), Selected = false;\r\ndatatable(Computer:string, Label:string, Selected:bool)\r\n    [ '*', 'All Machines', false ]\r\n| union computers\r\n| order by case(Computer == '*', 0, 1), Computer asc\r\n\r\n",
+                  "typeSettings": {
+                    "additionalResourceOptions": [],
+                    "showDefault": false
+                  },
+                  "queryType": 0,
+                  "resourceType": "microsoft.operationalinsights/workspaces",
+                  "value": [
+                    "micsenlogaze2p01",
+                    "micsenlogaze2p02",
+                    "micsenlogmforprod01",
+                    "micsenlogsfnyprod01",
+                    "micsenlogsfnyprod02"
+                  ]
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Counter",
+                  "type": 2,
+                  "isRequired": true,
+                  "query": "Perf\r\n| where TimeGenerated {TimeRange}\r\n| where Computer in ({VirtualMachines}) or '*' in ({VirtualMachines})\r\n| summarize by CounterName, ObjectName, CounterText = strcat(ObjectName, ' > ', CounterName)\r\n| order by ObjectName asc, CounterText asc\r\n| project Counter = pack('counter', CounterName, 'object', ObjectName), CounterText",
+                  "value": "{\"counter\":\"% Processor Time\",\"object\":\"Processor\"}",
+                  "resourceType": "microsoft.operationalinsights/workspaces"
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Metrics",
+                  "type": 2,
+                  "isRequired": true,
+                  "multiSelect": true,
+                  "quote": "",
+                  "delimiter": ",",
+                  "value": [
+                    "Average = round(avg(CounterValue), 2)"
+                  ],
+                  "jsonData": "[\r\n    { \"value\":\"Average = round(avg(CounterValue), 2)\", \"label\":\"Average\", \"selected\":true },\r\n    { \"value\":\"p1 = round(percentile(CounterValue, 1), 2)\", \"label\":\"p1\", \"selected\":false},\r\n    { \"value\":\"p5 = round(percentile(CounterValue, 5), 2)\", \"label\":\"p5\", \"selected\":false},\r\n    { \"value\":\"p10 = round(percentile(CounterValue, 10), 2)\", \"label\":\"p10\", \"selected\":false},\r\n    { \"value\":\"p50 = round(percentile(CounterValue, 50), 2)\", \"label\":\"p50\", \"selected\":false},\r\n    { \"value\":\"p90 = round(percentile(CounterValue, 90), 2)\", \"label\":\"p90\", \"selected\":false},\r\n    { \"value\":\"p95 = round(percentile(CounterValue, 95), 2)\", \"label\":\"p95\", \"selected\":true},\r\n    { \"value\":\"p99 = round(percentile(CounterValue, 99), 2)\", \"label\":\"p99\", \"selected\":false},\r\n    { \"value\":\"Min = round(min(CounterValue), 2)\", \"label\":\"Min\", \"selected\":false},\r\n    { \"value\":\"Max = round(max(CounterValue), 2)\", \"label\":\"Max\", \"selected\":false}    \r\n]"
+                }
+              ],
+              "style": "pills",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces"
+            },
+            "name": "parameters - 1"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "## Computers"
+            },
+            "name": "text - 3"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let metric = dynamic({Counter});\nlet data = Perf\n| where TimeGenerated {TimeRange}\n| where Computer in ({VirtualMachines}) or '*' in ({VirtualMachines})\n| where ObjectName == metric.object and CounterName == metric.counter\n| summarize {Metrics} by Computer;\nPerf\n| where TimeGenerated {TimeRange}\n| where Computer in ({VirtualMachines}) or '*' in ({VirtualMachines})\n| where ObjectName == metric.object and CounterName == metric.counter\n| make-series Trend = round(avg(CounterValue), 2) default = 0 on TimeGenerated in range({TimeRange:start}, {TimeRange:end}, {TimeRange:grain}) by Computer\n| project Computer, ['Trend (avg)'] = Trend\n| join kind=inner (data) on Computer\n| project-away Computer1\n| order by tolower(Computer) asc",
+              "size": 3,
+              "exportFieldName": "Computer",
+              "exportParameterName": "computer",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Computer",
+                    "formatter": 1,
+                    "formatOptions": {}
+                  },
+                  {
+                    "columnMatch": "Trend (avg)",
+                    "formatter": 10,
+                    "formatOptions": {
+                      "min": null,
+                      "max": null,
+                      "palette": "green"
+                    }
+                  },
+                  {
+                    "columnMatch": ".*",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "min": 0,
+                      "max": null,
+                      "palette": "red"
+                    }
+                  }
+                ]
+              }
+            },
+            "name": "query - 4"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "*Click on a row to see trends for just that computer*"
+            },
+            "name": "text - 5"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "## Trend: {computer}"
+            },
+            "name": "text - 6"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let metric = dynamic({Counter});\nPerf\n| where TimeGenerated {TimeRange}\n| where Computer in ({VirtualMachines}) or '*' in ({VirtualMachines})\n| where Computer == '{computer}' or 'All' == '{computer}'\n| where ObjectName == metric.object and CounterName == metric.counter\n| summarize {Metrics} by bin(TimeGenerated, {TimeRange:grain})",
+              "size": 0,
+              "aggregation": 3,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "visualization": "timechart"
+            },
+            "name": "query - 7"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "Tab",
+        "comparison": "isEqualTo",
+        "value": "Server Detail"
+      },
+      "name": "Group-VMDetail"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 9,
+            "content": {
+              "version": "KqlParameterItem/1.0",
+              "parameters": [
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "_TimeRange",
+                  "type": 4,
+                  "description": "Time Range for Performance Metrics",
+                  "typeSettings": {
+                    "selectableValues": [
+                      {
+                        "durationMs": 14400000
+                      },
+                      {
+                        "durationMs": 43200000
+                      },
+                      {
+                        "durationMs": 86400000
+                      },
+                      {
+                        "durationMs": 259200000
+                      },
+                      {
+                        "durationMs": 604800000
+                      },
+                      {
+                        "durationMs": 1209600000
+                      },
+                      {
+                        "durationMs": 2592000000
+                      }
+                    ]
+                  },
+                  "timeContext": {
+                    "durationMs": 86400000
+                  },
+                  "value": {
+                    "durationMs": 43200000
+                  },
+                  "label": "Time Range"
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "SelectedHosts",
+                  "label": "Virtual Machines",
+                  "type": 2,
+                  "isRequired": true,
+                  "multiSelect": true,
+                  "quote": "\"",
+                  "delimiter": ",",
+                  "query": "datatable(Host:string, Label:string)\n[\n  \"-Group- PROD Hosts\", \"-Group- PROD Hosts\",\n  \"-Group- DEV Hosts\", \"-Group- DEV Hosts\",\n  \"-Group- QA Hosts\", \"-Group- QA Hosts\",\n  \"-Group- ORACLE Hosts\", \"-Group- ORACLE Hosts\",\n  \"-Group- ATLAS Hosts\", \"-Group- ATLAS Hosts\",\n  \"-Group- SAP Hosts\", \"-Group- SAP Hosts\",\n  \"-Group- Sentinel Log Collectors\", \"-Group- Sentinel Log Collectors\"\n]\n// Append actual hostnames\n| union (\n    Perf\n    | summarize by Computer\n    | project Host=Computer, Label=tolower(Computer)\n)\n| order by Label asc\n",
+                  "typeSettings": {
+                    "additionalResourceOptions": [],
+                    "showDefault": false
+                  },
+                  "queryType": 0,
+                  "resourceType": "microsoft.operationalinsights/workspaces",
+                  "value": [
+                    "micsenlogaze2p01",
+                    "micsenlogaze2p02",
+                    "micsenlogaze2p03"
+                  ]
+                }
+              ],
+              "style": "pills",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces"
+            },
+            "name": "parameters - 6"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let GroupPatterns = datatable(Group:string, Regex:string)\n[\n    \"-Group- PROD Hosts\", @\"prod|prod0|p0\",\n    \"-Group- DEV Hosts\", @\"dev|d0\",\n    \"-Group- QA Hosts\", @\"q0|qa\",\n    \"-Group- ORACLE Hosts\", @\"db|ebs|ora\",\n    \"-Group- ATLAS Hosts\", @\"atl|atlas\",\n    \"-Group- SAP Hosts\", @\"mpsap\",\n    \"-Group- Sentinel Log Collectors\", @\"micsenlog\"\n];\nlet paramHosts = '{SelectedHosts}';\nlet hosts = iif(isempty(paramHosts), dynamic([]), iif(paramHosts contains '\",\"', split(trim('\"', paramHosts), '\",\"'), parse_json(strcat('[\"', trim('\"', paramHosts), '\"]'))));\nlet AllComputerList = Perf | summarize by Computer=tostring(Computer);\nlet SelectedGroups = range i from 0 to array_length(hosts)-1 step 1 | extend Group = tostring(hosts[i]) | where Group in (GroupPatterns | project Group);\nlet SelectedHostnames = range i from 0 to array_length(hosts)-1 step 1 | extend Computer = tostring(hosts[i]) | where Computer !in (GroupPatterns | project Group);\nlet HostsFromGroups = \n    union\n        (\n            SelectedGroups | where Group == \"-Group- PROD Hosts\" | extend pat = @\"prod|prod0|p0\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- DEV Hosts\" | extend pat = @\"dev|d0\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- QA Hosts\" | extend pat = @\"q0|qa\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- ORACLE Hosts\" | extend pat = @\"db|ebs|ora\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- ATLAS Hosts\" | extend pat = @\"atl|atlas\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- SAP Hosts\" | extend pat = @\"mpsap\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- Sentinel Log Collectors\" | extend pat = @\"micsenlog\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        );\nlet FilteredHosts = (\n    (HostsFromGroups)\n    | union (SelectedHostnames | project Computer)\n    | union (datatable(Computer:string) [])\n    | summarize by Computer\n);\nlet HostCount = toscalar(FilteredHosts | summarize cnt = count());\nlet AllHosts =\n    union \n        (FilteredHosts | extend _src=\"filtered\" | where HostCount > 0),\n        (AllComputerList | extend _src=\"all\" | where HostCount == 0)\n    | project Computer;\nPerf\n| join kind=inner (AllHosts) on Computer\n| where CounterName == \"% Processor Time\"\n| where tolower(InstanceName) == \"_total\" or tolower(InstanceName) == \"total\"\n| where ObjectName == \"Processor\" or ObjectName == \"Processor Information\"\n| summarize AvgCPU = avg(CounterValue) by bin(TimeGenerated, 15m), Computer\n| order by TimeGenerated asc\n| render timechart\n",
+              "size": 1,
+              "aggregation": 3,
+              "title": "CPU Performance (% Processor Time)",
+              "timeContextFromParameter": "_TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "chartSettings": {
+                "showLegend": true,
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "micsenlogmforprod01",
+                    "color": "orangeDark"
+                  },
+                  {
+                    "seriesName": "micsenlogsfnyprod02",
+                    "color": "pink"
+                  },
+                  {
+                    "seriesName": "micsenlogsfnyprod01",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "micsenlogaze2p02",
+                    "color": "lightBlue"
+                  },
+                  {
+                    "seriesName": "micsenlogaze2p01",
+                    "color": "blue"
+                  },
+                  {
+                    "seriesName": "micsenlogaze2p03",
+                    "color": "amethyst"
+                  },
+                  {
+                    "seriesName": "PLACEHOLDER_HOSTNAME",
+                    "color": "orange"
+                  },
+                  {
+                    "seriesName": "dbatlaze2p01",
+                    "color": "redBright"
+                  }
+                ],
+                "xSettings": {
+                  "label": "Time Generated"
+                },
+                "ySettings": {
+                  "label": "Avg CPU Time"
+                }
+              }
+            },
+            "customWidth": "50",
+            "name": "query - 2",
+            "styleSettings": {
+              "showBorder": true
+            }
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let GroupPatterns = datatable(Group:string, Regex:string)\n[\n    \"-Group- PROD Hosts\", @\"prod|prod0|p0\",\n    \"-Group- DEV Hosts\", @\"dev|d0\",\n    \"-Group- QA Hosts\", @\"q0|qa\",\n    \"-Group- ORACLE Hosts\", @\"db|ebs|ora\",\n    \"-Group- ATLAS Hosts\", @\"atl|atlas\",\n    \"-Group- SAP Hosts\", @\"mpsap\",\n    \"-Group- Sentinel Log Collectors\", @\"micsenlog\"\n];\nlet paramHosts = '{SelectedHosts}';\nlet hosts = iif(isempty(paramHosts), dynamic([]), iif(paramHosts contains '\",\"', split(trim('\"', paramHosts), '\",\"'), parse_json(strcat('[\"', trim('\"', paramHosts), '\"]'))));\nlet AllComputerList = Perf | summarize by Computer=tostring(Computer);\nlet SelectedGroups = range i from 0 to array_length(hosts)-1 step 1 | extend Group = tostring(hosts[i]) | where Group in (GroupPatterns | project Group);\nlet SelectedHostnames = range i from 0 to array_length(hosts)-1 step 1 | extend Computer = tostring(hosts[i]) | where Computer !in (GroupPatterns | project Group);\nlet HostsFromGroups = \n    union\n        (\n            SelectedGroups | where Group == \"-Group- PROD Hosts\" | extend pat = @\"prod|prod0|p0\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- DEV Hosts\" | extend pat = @\"dev|d0\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- QA Hosts\" | extend pat = @\"q0|qa\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- ORACLE Hosts\" | extend pat = @\"db|ebs|ora\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- ATLAS Hosts\" | extend pat = @\"atl|atlas\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- SAP Hosts\" | extend pat = @\"mpsap\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- Sentinel Log Collectors\" | extend pat = @\"micsenlog\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        );\nlet FilteredHosts = (\n    (HostsFromGroups)\n    | union (SelectedHostnames | project Computer)\n    | union (datatable(Computer:string) [])\n    | summarize by Computer\n);\nlet HostCount = toscalar(FilteredHosts | summarize cnt = count());\nlet AllHosts =\n    union \n        (FilteredHosts | extend _src=\"filtered\" | where HostCount > 0),\n        (AllComputerList | extend _src=\"all\" | where HostCount == 0)\n    | project Computer;\nPerf\n| join kind=inner (AllHosts) on Computer\n| where \n    (ObjectName == \"Memory\" and CounterName == \"% Used Memory\" and (InstanceName == \"Memory\" or InstanceName == \"total\")) // Linux\n or (ObjectName == \"Memory\" and CounterName == \"% Committed Bytes In Use\") // Windows\n| summarize AvgMem = avg(CounterValue) by bin(TimeGenerated, 15m), Computer\n| order by TimeGenerated asc\n| render timechart",
+              "size": 1,
+              "aggregation": 3,
+              "title": "Memory Usage (% Memory In Use)",
+              "timeContextFromParameter": "_TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "linechart",
+              "chartSettings": {
+                "showLegend": true,
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "micsenlogsfnyprod02",
+                    "color": "pink"
+                  },
+                  {
+                    "seriesName": "micsenlogmforprod01",
+                    "color": "orangeDark"
+                  },
+                  {
+                    "seriesName": "micsenlogsfnyprod01",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "micsenlogaze2p02",
+                    "color": "lightBlue"
+                  },
+                  {
+                    "seriesName": "micsenlogaze2p01",
+                    "color": "blue"
+                  },
+                  {
+                    "seriesName": "micsenlogaze2p03",
+                    "color": "amethyst"
+                  },
+                  {
+                    "seriesName": "PLACEHOLDER_HOSTNAME",
+                    "color": "orange"
+                  },
+                  {
+                    "seriesName": "dbatlaze2p01",
+                    "color": "redBright"
+                  }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "query - 1",
+            "styleSettings": {
+              "showBorder": true
+            }
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let GroupPatterns = datatable(Group:string, Regex:string)\n[\n    \"-Group- PROD Hosts\", @\"prod|prod0|p0\",\n    \"-Group- DEV Hosts\", @\"dev|d0\",\n    \"-Group- QA Hosts\", @\"q0|qa\",\n    \"-Group- ORACLE Hosts\", @\"db|ebs|ora\",\n    \"-Group- ATLAS Hosts\", @\"atl|atlas\",\n    \"-Group- SAP Hosts\", @\"mpsap\",\n    \"-Group- Sentinel Log Collectors\", @\"micsenlog\"\n];\nlet paramHosts = '{SelectedHosts}';\nlet hosts = iif(isempty(paramHosts), dynamic([]), iif(paramHosts contains '\",\"', split(trim('\"', paramHosts), '\",\"'), parse_json(strcat('[\"', trim('\"', paramHosts), '\"]'))));\nlet AllComputerList = Perf | summarize by Computer=tostring(Computer);\nlet SelectedGroups = range i from 0 to array_length(hosts)-1 step 1 | extend Group = tostring(hosts[i]) | where Group in (GroupPatterns | project Group);\nlet SelectedHostnames = range i from 0 to array_length(hosts)-1 step 1 | extend Computer = tostring(hosts[i]) | where Computer !in (GroupPatterns | project Group);\nlet HostsFromGroups = \n    union\n        (\n            SelectedGroups | where Group == \"-Group- PROD Hosts\" | extend pat = @\"prod|prod0|p0\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- DEV Hosts\" | extend pat = @\"dev|d0\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- QA Hosts\" | extend pat = @\"q0|qa\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- ORACLE Hosts\" | extend pat = @\"db|ebs|ora\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- ATLAS Hosts\" | extend pat = @\"atl|atlas\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- SAP Hosts\" | extend pat = @\"mpsap\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- Sentinel Log Collectors\" | extend pat = @\"micsenlog\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        );\nlet FilteredHosts = (\n    (HostsFromGroups)\n    | union (SelectedHostnames | project Computer)\n    | union (datatable(Computer:string) [])\n    | summarize by Computer\n);\nlet HostCount = toscalar(FilteredHosts | summarize cnt = count());\nlet AllHosts =\n    union \n        (FilteredHosts | extend _src=\"filtered\" | where HostCount > 0),\n        (AllComputerList | extend _src=\"all\" | where HostCount == 0)\n    | project Computer;\nPerf\n| join kind=inner (AllHosts) on Computer\n| where \n    (ObjectName == \"Network\" and CounterName == \"Total Bytes Transmitted\" and InstanceName == \"total\") // Linux\n or (ObjectName == \"Network Interface\" and CounterName == \"Bytes Total/sec\") // Windows\n| summarize AvgNet = avg(CounterValue) by bin(TimeGenerated, 15m), Computer\n| order by TimeGenerated asc\n| render timechart\n",
+              "size": 1,
+              "aggregation": 3,
+              "title": "Network Usage (Bytes Transmitted)",
+              "timeContextFromParameter": "_TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "linechart",
+              "chartSettings": {
+                "showLegend": true,
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "micsenlogsfnyprod02",
+                    "color": "pink"
+                  },
+                  {
+                    "seriesName": "micsenlogmforprod01",
+                    "color": "orangeDark"
+                  },
+                  {
+                    "seriesName": "micsenlogsfnyprod01",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "micsenlogaze2p02",
+                    "color": "lightBlue"
+                  },
+                  {
+                    "seriesName": "micsenlogaze2p01",
+                    "color": "blue"
+                  },
+                  {
+                    "seriesName": "micsenlogaze2p03",
+                    "color": "amethyst"
+                  },
+                  {
+                    "seriesName": "PLACEHOLDER_HOSTNAME",
+                    "color": "orange"
+                  },
+                  {
+                    "seriesName": "dbatlaze2p01",
+                    "color": "redBright"
+                  }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "query - 1 - Copy",
+            "styleSettings": {
+              "showBorder": true
+            }
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let GroupPatterns = datatable(Group:string, Regex:string)\n[\n    \"-Group- PROD Hosts\", @\"prod|prod0|p0\",\n    \"-Group- DEV Hosts\", @\"dev|d0\",\n    \"-Group- QA Hosts\", @\"q0|qa\",\n    \"-Group- ORACLE Hosts\", @\"db|ebs|ora\",\n    \"-Group- ATLAS Hosts\", @\"atl|atlas\",\n    \"-Group- SAP Hosts\", @\"mpsap\",\n    \"-Group- Sentinel Log Collectors\", @\"micsenlog\"\n];\nlet paramHosts = '{SelectedHosts}';\nlet hosts = iif(isempty(paramHosts), dynamic([]), iif(paramHosts contains '\",\"', split(trim('\"', paramHosts), '\",\"'), parse_json(strcat('[\"', trim('\"', paramHosts), '\"]'))));\nlet AllComputerList = Perf | summarize by Computer=tostring(Computer);\nlet SelectedGroups = range i from 0 to array_length(hosts)-1 step 1 | extend Group = tostring(hosts[i]) | where Group in (GroupPatterns | project Group);\nlet SelectedHostnames = range i from 0 to array_length(hosts)-1 step 1 | extend Computer = tostring(hosts[i]) | where Computer !in (GroupPatterns | project Group);\nlet HostsFromGroups = \n    union\n        (\n            SelectedGroups | where Group == \"-Group- PROD Hosts\" | extend pat = @\"prod|prod0|p0\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- DEV Hosts\" | extend pat = @\"dev|d0\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- QA Hosts\" | extend pat = @\"q0|qa\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- ORACLE Hosts\" | extend pat = @\"db|ebs|ora\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- ATLAS Hosts\" | extend pat = @\"atl|atlas\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- SAP Hosts\" | extend pat = @\"mpsap\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- Sentinel Log Collectors\" | extend pat = @\"micsenlog\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        );\nlet FilteredHosts = (\n    (HostsFromGroups)\n    | union (SelectedHostnames | project Computer)\n    | union (datatable(Computer:string) [])\n    | summarize by Computer\n);\nlet HostCount = toscalar(FilteredHosts | summarize cnt = count());\nlet AllHosts =\n    union \n        (FilteredHosts | extend _src=\"filtered\" | where HostCount > 0),\n        (AllComputerList | extend _src=\"all\" | where HostCount == 0)\n    | project Computer;\nPerf\n| join kind=inner (AllHosts) on Computer\n| where \n    (ObjectName == \"Logical Disk\" and CounterName == \"Logical Disk Bytes/sec\" and InstanceName == \"total\") // Linux\n or (ObjectName == \"LogicalDisk\" and CounterName == \"Avg. Disk sec/Transfer\") // Windows\n| summarize AvgDisk = avg(CounterValue) by bin(TimeGenerated, 15m), Computer\n| order by TimeGenerated asc\n| render timechart",
+              "size": 1,
+              "aggregation": 3,
+              "title": "Logical Disk Performance (Bytes Per Second)",
+              "timeContextFromParameter": "_TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "linechart",
+              "chartSettings": {
+                "showLegend": true,
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "micsenlogsfnyprod02",
+                    "color": "pink"
+                  },
+                  {
+                    "seriesName": "micsenlogsfnyprod01",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "micsenlogmforprod01",
+                    "color": "orangeDark"
+                  },
+                  {
+                    "seriesName": "micsenlogaze2p01",
+                    "color": "blue"
+                  },
+                  {
+                    "seriesName": "micsenlogaze2p02",
+                    "color": "lightBlue"
+                  },
+                  {
+                    "seriesName": "micsenlogaze2p03",
+                    "color": "amethyst"
+                  },
+                  {
+                    "seriesName": "PLACEHOLDER_HOSTNAME",
+                    "color": "orange"
+                  },
+                  {
+                    "seriesName": "dbatlaze2p01",
+                    "color": "redBright"
+                  }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "query - 2",
+            "styleSettings": {
+              "showBorder": true
+            }
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let GroupPatterns = datatable(Group:string, Regex:string)\n[\n    \"-Group- PROD Hosts\", @\"prod|prod0|p0\",\n    \"-Group- DEV Hosts\", @\"dev|d0\",\n    \"-Group- QA Hosts\", @\"q0|qa\",\n    \"-Group- ORACLE Hosts\", @\"db|ebs|ora\",\n    \"-Group- ATLAS Hosts\", @\"atl|atlas\",\n    \"-Group- SAP Hosts\", @\"mpsap\",\n    \"-Group- Sentinel Log Collectors\", @\"micsenlog\"\n];\nlet paramHosts = '{SelectedHosts}';\nlet hosts = iif(isempty(paramHosts), dynamic([]), iif(paramHosts contains '\",\"', split(trim('\"', paramHosts), '\",\"'), parse_json(strcat('[\"', trim('\"', paramHosts), '\"]'))));\nlet AllComputerList = Perf | summarize by Computer=tostring(Computer);\nlet SelectedGroups = range i from 0 to array_length(hosts)-1 step 1 | extend Group = tostring(hosts[i]) | where Group in (GroupPatterns | project Group);\nlet SelectedHostnames = range i from 0 to array_length(hosts)-1 step 1 | extend Computer = tostring(hosts[i]) | where Computer !in (GroupPatterns | project Group);\nlet HostsFromGroups = \n    union\n        (\n            SelectedGroups | where Group == \"-Group- PROD Hosts\" | extend pat = @\"prod|prod0|p0\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- DEV Hosts\" | extend pat = @\"dev|d0\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- QA Hosts\" | extend pat = @\"q0|qa\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- ORACLE Hosts\" | extend pat = @\"db|ebs|ora\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- ATLAS Hosts\" | extend pat = @\"atl|atlas\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- SAP Hosts\" | extend pat = @\"mpsap\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- Sentinel Log Collectors\" | extend pat = @\"micsenlog\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        );\nlet FilteredHosts = (\n    (HostsFromGroups)\n    | union (SelectedHostnames | project Computer)\n    | union (datatable(Computer:string) [])\n    | summarize by Computer\n);\nlet HostCount = toscalar(FilteredHosts | summarize cnt = count());\nlet AllHosts =\n    union \n        (FilteredHosts | extend _src=\"filtered\" | where HostCount > 0),\n        (AllComputerList | extend _src=\"all\" | where HostCount == 0)\n    | project Computer;\nPerf\n| join kind=inner (AllHosts) on Computer\n| where \n    (ObjectName == \"Logical Disk\" and CounterName == \"% Free Space\" and InstanceName == \"total\") // Linux\n or (ObjectName == \"LogicalDisk\" and CounterName == \"% Free Space\") // Windows\n| summarize AvgDisk = avg(CounterValue) by bin(TimeGenerated, 15m), Computer\n| order by TimeGenerated asc\n| render timechart",
+              "size": 1,
+              "aggregation": 3,
+              "title": "% Free Space",
+              "timeContextFromParameter": "_TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "linechart",
+              "chartSettings": {
+                "showLegend": true,
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "micsenlogsfnyprod02",
+                    "color": "pink"
+                  },
+                  {
+                    "seriesName": "micsenlogsfnyprod01",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "micsenlogmforprod01",
+                    "color": "orangeDark"
+                  },
+                  {
+                    "seriesName": "micsenlogaze2p01",
+                    "color": "blue"
+                  },
+                  {
+                    "seriesName": "micsenlogaze2p02",
+                    "color": "lightBlue"
+                  },
+                  {
+                    "seriesName": "micsenlogaze2p03",
+                    "color": "amethyst"
+                  },
+                  {
+                    "seriesName": "PLACEHOLDER_HOSTNAME",
+                    "color": "orange"
+                  },
+                  {
+                    "seriesName": "dbatlaze2p01",
+                    "color": "redBright"
+                  }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "query - 2 - Copy",
+            "styleSettings": {
+              "showBorder": true
+            }
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let GroupPatterns = datatable(Group:string, Regex:string)\n[\n    \"-Group- PROD Hosts\", @\"prod|prod0|p0\",\n    \"-Group- DEV Hosts\", @\"dev|d0\",\n    \"-Group- QA Hosts\", @\"q0|qa\",\n    \"-Group- ORACLE Hosts\", @\"db|ebs|ora\",\n    \"-Group- ATLAS Hosts\", @\"atl|atlas\",\n    \"-Group- SAP Hosts\", @\"mpsap\",\n    \"-Group- Sentinel Log Collectors\", @\"micsenlog\"\n];\nlet paramHosts = '{SelectedHosts}';\nlet hosts = iif(isempty(paramHosts), dynamic([]), iif(paramHosts contains '\",\"', split(trim('\"', paramHosts), '\",\"'), parse_json(strcat('[\"', trim('\"', paramHosts), '\"]'))));\nlet AllComputerList = Perf | summarize by Computer=tostring(Computer);\nlet SelectedGroups = range i from 0 to array_length(hosts)-1 step 1 | extend Group = tostring(hosts[i]) | where Group in (GroupPatterns | project Group);\nlet SelectedHostnames = range i from 0 to array_length(hosts)-1 step 1 | extend Computer = tostring(hosts[i]) | where Computer !in (GroupPatterns | project Group);\nlet HostsFromGroups = \n    union\n        (\n            SelectedGroups | where Group == \"-Group- PROD Hosts\" | extend pat = @\"prod|prod0|p0\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- DEV Hosts\" | extend pat = @\"dev|d0\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- QA Hosts\" | extend pat = @\"q0|qa\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- ORACLE Hosts\" | extend pat = @\"db|ebs|ora\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- ATLAS Hosts\" | extend pat = @\"atl|atlas\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- SAP Hosts\" | extend pat = @\"mpsap\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- Sentinel Log Collectors\" | extend pat = @\"micsenlog\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        );\nlet FilteredHosts = (\n    (HostsFromGroups)\n    | union (SelectedHostnames | project Computer)\n    | union (datatable(Computer:string) [])\n    | summarize by Computer\n);\nlet HostCount = toscalar(FilteredHosts | summarize cnt = count());\nlet AllHosts =\n    union \n        (FilteredHosts | extend _src=\"filtered\" | where HostCount > 0),\n        (AllComputerList | extend _src=\"all\" | where HostCount == 0)\n    | project Computer;\nPerf\n| join kind=inner (AllHosts) on Computer\n| where ObjectName == \"Processor\"\n| where CounterName in (\"% Idle Time\", \"% User Time\", \"% Privileged Time\", \"% IO Wait Time\", \"% Nice Time\")\n| extend CounterName = case(\n    CounterName == \"% Idle Time\", \"Idle\",\n    CounterName == \"% User Time\", \"User\",\n    CounterName == \"% Privileged Time\", \"System\",\n    CounterName == \"% IO Wait Time\", \"IOWait\",\n    CounterName == \"% Nice Time\", \"Nice\",\n    CounterName)\n| evaluate pivot(CounterName, avg(CounterValue), TimeGenerated)\n| extend Percent_CPU_Load = 100 - Idle\n| project TimeGenerated, Percent_CPU_Load, User, System, IOWait, Nice\n| order by TimeGenerated asc",
+              "size": 1,
+              "aggregation": 3,
+              "title": "%user %system %iowait %nice",
+              "timeContextFromParameter": "_TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "areachart",
+              "chartSettings": {
+                "showLegend": true
+              }
+            },
+            "customWidth": "50",
+            "name": "query - 5",
+            "styleSettings": {
+              "showBorder": true
+            }
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let GroupPatterns = datatable(Group:string, Regex:string)\n[\n    \"-Group- PROD Hosts\", @\"prod|prod0|p0\",\n    \"-Group- DEV Hosts\", @\"dev|d0\",\n    \"-Group- QA Hosts\", @\"q0|qa\",\n    \"-Group- ORACLE Hosts\", @\"db|ebs|ora\",\n    \"-Group- ATLAS Hosts\", @\"atl|atlas\",\n    \"-Group- SAP Hosts\", @\"mpsap\",\n    \"-Group- Sentinel Log Collectors\", @\"micsenlog\"\n];\nlet paramHosts = '{SelectedHosts}';\nlet hosts = iif(isempty(paramHosts), dynamic([]), iif(paramHosts contains '\",\"', split(trim('\"', paramHosts), '\",\"'), parse_json(strcat('[\"', trim('\"', paramHosts), '\"]'))));\nlet AllComputerList = Perf | summarize by Computer=tostring(Computer);\nlet SelectedGroups = range i from 0 to array_length(hosts)-1 step 1 | extend Group = tostring(hosts[i]) | where Group in (GroupPatterns | project Group);\nlet SelectedHostnames = range i from 0 to array_length(hosts)-1 step 1 | extend Computer = tostring(hosts[i]) | where Computer !in (GroupPatterns | project Group);\nlet HostsFromGroups = \n    union\n        (\n            SelectedGroups | where Group == \"-Group- PROD Hosts\" | extend pat = @\"prod|prod0|p0\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- DEV Hosts\" | extend pat = @\"dev|d0\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- QA Hosts\" | extend pat = @\"q0|qa\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- ORACLE Hosts\" | extend pat = @\"db|ebs|ora\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- ATLAS Hosts\" | extend pat = @\"atl|atlas\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- SAP Hosts\" | extend pat = @\"mpsap\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- Sentinel Log Collectors\" | extend pat = @\"micsenlog\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        );\nlet FilteredHosts = (\n    (HostsFromGroups)\n    | union (SelectedHostnames | project Computer)\n    | union (datatable(Computer:string) [])\n    | summarize by Computer\n);\nlet HostCount = toscalar(FilteredHosts | summarize cnt = count());\nlet AllHosts =\n    union \n        (FilteredHosts | extend _src=\"filtered\" | where HostCount > 0),\n        (AllComputerList | extend _src=\"all\" | where HostCount == 0)\n    | project Computer;\nPerf\n| join kind=inner (AllHosts) on Computer\n| where CounterName contains \"% Used Swap Space\"\n| summarize AvgSwap = avg(CounterValue) by bin(TimeGenerated, 5m), Computer\n| order by TimeGenerated asc\n| render timechart ",
+              "size": 1,
+              "aggregation": 3,
+              "title": "Swap Space % Used",
+              "timeContextFromParameter": "_TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "timechart",
+              "chartSettings": {
+                "showLegend": true,
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "micsenlogsfnyprod01",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "micsenlogmforprod01",
+                    "color": "orangeDark"
+                  },
+                  {
+                    "seriesName": "micsenlogsfnyprod02",
+                    "color": "pink"
+                  },
+                  {
+                    "seriesName": "micsenlogaze2p01",
+                    "color": "blue"
+                  },
+                  {
+                    "seriesName": "micsenlogaze2p02",
+                    "color": "lightBlue"
+                  },
+                  {
+                    "seriesName": "micsenlogaze2p03",
+                    "color": "amethyst"
+                  },
+                  {
+                    "seriesName": "PLACEHOLDER_HOSTNAME",
+                    "color": "orange"
+                  },
+                  {
+                    "seriesName": "dbatlaze2p01",
+                    "color": "redBright"
+                  }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "query - 6",
+            "styleSettings": {
+              "showBorder": true
+            }
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let GroupPatterns = datatable(Group:string, Regex:string)\n[\n    \"-Group- PROD Hosts\", @\"prod|prod0|p0\",\n    \"-Group- DEV Hosts\", @\"dev|d0\",\n    \"-Group- QA Hosts\", @\"q0|qa\",\n    \"-Group- ORACLE Hosts\", @\"db|ebs|ora\",\n    \"-Group- ATLAS Hosts\", @\"atl|atlas\",\n    \"-Group- SAP Hosts\", @\"mpsap\",\n    \"-Group- Sentinel Log Collectors\", @\"micsenlog\"\n];\nlet paramHosts = '{SelectedHosts}';\nlet hosts = iif(isempty(paramHosts), dynamic([]), iif(paramHosts contains '\",\"', split(trim('\"', paramHosts), '\",\"'), parse_json(strcat('[\"', trim('\"', paramHosts), '\"]'))));\nlet AllComputerList = Perf | summarize by Computer=tostring(Computer);\nlet SelectedGroups = range i from 0 to array_length(hosts)-1 step 1 | extend Group = tostring(hosts[i]) | where Group in (GroupPatterns | project Group);\nlet SelectedHostnames = range i from 0 to array_length(hosts)-1 step 1 | extend Computer = tostring(hosts[i]) | where Computer !in (GroupPatterns | project Group);\nlet HostsFromGroups = \n    union\n        (\n            SelectedGroups | where Group == \"-Group- PROD Hosts\" | extend pat = @\"prod|prod0|p0\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- DEV Hosts\" | extend pat = @\"dev|d0\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- QA Hosts\" | extend pat = @\"q0|qa\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- ORACLE Hosts\" | extend pat = @\"db|ebs|ora\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- ATLAS Hosts\" | extend pat = @\"atl|atlas\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- SAP Hosts\" | extend pat = @\"mpsap\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        ),\n        (\n            SelectedGroups | where Group == \"-Group- Sentinel Log Collectors\" | extend pat = @\"micsenlog\", key=1\n            | join kind=inner (AllComputerList | extend key=1) on $left.key == $right.key\n            | where tostring(Computer) matches regex pat | project Computer\n        );\nlet FilteredHosts = (\n    (HostsFromGroups)\n    | union (SelectedHostnames | project Computer)\n    | union (datatable(Computer:string) [])\n    | summarize by Computer\n);\nlet HostCount = toscalar(FilteredHosts | summarize cnt = count());\nlet AllHosts =\n    union \n        (FilteredHosts | extend _src=\"filtered\" | where HostCount > 0),\n        (AllComputerList | extend _src=\"all\" | where HostCount == 0)\n    | project Computer;\nPerf\n| join kind=inner (AllHosts) on Computer\n| where CounterName in (\"Disk Reads/sec\", \"Disk Writes/sec\")\n| summarize\n    Writes = avgif(CounterValue, CounterName == \"Disk Writes/sec\"),\n    Reads  = avgif(CounterValue, CounterName == \"Disk Reads/sec\")\n    by bin(TimeGenerated, 5m), InstanceName, Computer",
+              "size": 1,
+              "aggregation": 3,
+              "title": "Logical Disk iops",
+              "timeContextFromParameter": "_TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "timechart",
+              "chartSettings": {
+                "showLegend": true
+              }
+            },
+            "customWidth": "50",
+            "name": "query - 6 - Copy",
+            "styleSettings": {
+              "showBorder": true
+            }
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "Tab",
+        "comparison": "isEqualTo",
+        "value": "Host Group Detail"
+      },
+      "name": "Group - Host Group Detail"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "<div style=\"font-size: 200%;\">Tab 04</div>"
+            },
+            "name": "text - 0"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "Tab",
+        "comparison": "isEqualTo",
+        "value": "Tab 04"
+      },
+      "name": "Group - Tab 04"
+    }
+  ],
+  "fallbackResourceIds": [
+    "/subscriptions/PLACEHOLDER_SUBSCRIPTION_ID/resourcegroups/18f-useast-infosec-sentinel/providers/microsoft.operationalinsights/workspaces/18f-useast-infosec-sentinel-la"
+  ],
+  "fromTemplateId": "sentinel-UserWorkbook",
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

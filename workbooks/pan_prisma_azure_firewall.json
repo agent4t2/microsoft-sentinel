@@ -1,0 +1,1040 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+            "version": "KqlParameterItem/1.0",
+            "name": "Tab",
+            "type": 11,
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "jsonData": "[\"PAN-OS Firewall Logs\", \"Prisma Access Traffic Logs\", \"Prisma Access URL Logs\", \"Azure Firewall Traffic\"]",
+            "timeContext": {
+              "durationMs": 86400000
+            },
+            "value": "PAN-OS Firewall Logs"
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "Tab Selector"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 9,
+            "content": {
+              "version": "KqlParameterItem/1.0",
+              "parameters": [
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "TimeRange",
+                  "type": 4,
+                  "isRequired": true,
+                  "value": {
+                    "durationMs": 14400000
+                  },
+                  "typeSettings": {
+                    "selectableValues": [
+                      {
+                        "durationMs": 300000
+                      },
+                      {
+                        "durationMs": 900000
+                      },
+                      {
+                        "durationMs": 1800000
+                      },
+                      {
+                        "durationMs": 3600000
+                      },
+                      {
+                        "durationMs": 14400000
+                      },
+                      {
+                        "durationMs": 43200000
+                      },
+                      {
+                        "durationMs": 86400000
+                      },
+                      {
+                        "durationMs": 172800000
+                      },
+                      {
+                        "durationMs": 259200000
+                      },
+                      {
+                        "durationMs": 604800000
+                      },
+                      {
+                        "durationMs": 1209600000
+                      },
+                      {
+                        "durationMs": 2419200000
+                      },
+                      {
+                        "durationMs": 2592000000
+                      },
+                      {
+                        "durationMs": 5184000000
+                      },
+                      {
+                        "durationMs": 7776000000
+                      }
+                    ],
+                    "allowCustom": true
+                  }
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Source_IP",
+                  "label": "Source IP",
+                  "type": 1,
+                  "timeContext": {
+                    "durationMs": 86400000
+                  },
+                  "timeContextFromParameter": "TimeRange",
+                  "defaultValue": "value::all",
+                  "value": ""
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Destination_IP",
+                  "label": "Destination IP",
+                  "type": 1,
+                  "timeContext": {
+                    "durationMs": 86400000
+                  },
+                  "timeContextFromParameter": "TimeRange",
+                  "defaultValue": "value::all",
+                  "value": ""
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Destination_Port",
+                  "label": "Destination Port",
+                  "type": 2,
+                  "isRequired": true,
+                  "multiSelect": true,
+                  "quote": "'",
+                  "delimiter": ",",
+                  "query": "CommonSecurityLog\n| summarize Count = count()/1000 by DestinationPort\n| where DestinationPort != \"\"\n| order by Count desc, DestinationPort asc\n| project Value = DestinationPort, Label = strcat(DestinationPort, \" - \", Count, \"k\"), Selected = false",
+                  "typeSettings": {
+                    "additionalResourceOptions": [
+                      "value::all"
+                    ],
+                    "showDefault": false
+                  },
+                  "timeContext": {
+                    "durationMs": 1800000
+                  },
+                  "defaultValue": "value::all",
+                  "queryType": 0,
+                  "resourceType": "microsoft.operationalinsights/workspaces",
+                  "value": [
+                    "value::all"
+                  ]
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Device_Action",
+                  "label": "Device Action",
+                  "type": 2,
+                  "isRequired": true,
+                  "multiSelect": true,
+                  "quote": "'",
+                  "delimiter": ",",
+                  "query": "CommonSecurityLog\n| summarize Count = count()/1000 by DeviceAction\n| where DeviceAction != \"\"\n| order by Count desc, DeviceAction asc\n| top 5 by Count\n| project Value = DeviceAction, Label = strcat(DeviceAction, \" - \", Count, \"k\"), Selected = false",
+                  "typeSettings": {
+                    "additionalResourceOptions": [
+                      "value::all"
+                    ],
+                    "showDefault": false
+                  },
+                  "timeContext": {
+                    "durationMs": 86400000
+                  },
+                  "defaultValue": "value::all",
+                  "queryType": 0,
+                  "resourceType": "microsoft.operationalinsights/workspaces"
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Device_Name",
+                  "label": "Device Name",
+                  "type": 2,
+                  "isRequired": true,
+                  "multiSelect": true,
+                  "quote": "'",
+                  "delimiter": ",",
+                  "query": "CommonSecurityLog\n| summarize Count = count()/1000 by DeviceName\n| where DeviceName != \"\"\n| order by Count desc, DeviceName asc\n| top 50 by Count\n| project Value = DeviceName, Label = strcat(DeviceName, \" - \", Count, \"k\"), Selected = false",
+                  "typeSettings": {
+                    "additionalResourceOptions": [
+                      "value::all"
+                    ],
+                    "selectAllValue": "All",
+                    "showDefault": false
+                  },
+                  "timeContext": {
+                    "durationMs": 3600000
+                  },
+                  "defaultValue": "value::all",
+                  "queryType": 0,
+                  "resourceType": "microsoft.operationalinsights/workspaces"
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Rule",
+                  "type": 2,
+                  "multiSelect": true,
+                  "quote": "'",
+                  "delimiter": ",",
+                  "query": "CommonSecurityLog\n| summarize Count = count()/1000 by DeviceCustomString1\n| where DeviceCustomString1 != \"\"\n| order by Count desc, DeviceCustomString1 asc\n| project Rule = DeviceCustomString1, Label = strcat(DeviceCustomString1, \" - \", Count, \"k\"), Selected = false",
+                  "typeSettings": {
+                    "additionalResourceOptions": [
+                      "value::all"
+                    ],
+                    "selectAllValue": "All",
+                    "showDefault": false
+                  },
+                  "timeContext": {
+                    "durationMs": 604800000
+                  },
+                  "defaultValue": "value::all",
+                  "queryType": 0,
+                  "resourceType": "microsoft.operationalinsights/workspaces"
+                }
+              ],
+              "style": "pills",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces"
+            },
+            "name": "parameters - 5"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "<div style=\"font-size: 200%;\">Palo Alto Firewall Traffic Log</div>"
+            },
+            "name": "text - 0"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "PAN_CommonSecurityLog\n| where DeviceVendor == \"Palo Alto Networks\"\n| where Activity == \"TRAFFIC\"\n| where SourceIP contains \"{Source_IP}\" // Specify Source IP\n| where DestinationIP contains \"{Destination_IP}\"  // Specify Destination IP\n| where \"{Destination_Port:lable}\"==\"All\" or DestinationPort in ({Destination_Port})  // Specify Port\n| where \"{Device_Action:lable}\"==\"All\" or DeviceAction in ({Device_Action})  // Specify Action\n| where \"{Device_Name:lable}\"==\"All\" or DeviceName in ({Device_Name})  // Specify Devices\n| where \"{Rule:lable}\"==\"All\" or Rule in ({Rule})  // Specify Rules\n| summarize count() by bin(TimeGenerated, 5m), DeviceAction",
+              "size": 1,
+              "title": "Traffic by Action",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "areachart",
+              "chartSettings": {
+                "showLegend": true,
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "deny",
+                    "color": "orange"
+                  },
+                  {
+                    "seriesName": "allow",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "reset-both",
+                    "color": "red"
+                  },
+                  {
+                    "seriesName": "drop",
+                    "color": "purple"
+                  }
+                ]
+              }
+            },
+            "name": "query - 4"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "PAN_CommonSecurityLog\r\n| where DeviceVendor == \"Palo Alto Networks\"\r\n| where Activity == \"TRAFFIC\"\r\n| where SourceIP contains \"{Source_IP}\" // Specify Source IP\r\n| where DestinationIP contains \"{Destination_IP}\"  // Specify Destination IP\r\n| where \"{Destination_Port:lable}\"==\"All\" or DestinationPort in ({Destination_Port})  // Specify Port\r\n| where \"{Device_Action:lable}\"==\"All\" or DeviceAction in ({Device_Action})  // Specify Action\r\n| where \"{Device_Name:lable}\"==\"All\" or DeviceName in ({Device_Name})  // Specify Devices\r\n| where \"{Rule:lable}\"==\"All\" or Rule in ({Rule})  // Specify Rules\r\n| project TimeGenerated, Activity, Action = DeviceAction, Application = ApplicationProtocol, SourceIP, DestinationIP, DestPort = DestinationPort, Protocol, DeviceName, Reason, DeviceEventCategory, Rule, TotalBytes\r\n| order by TimeGenerated desc",
+              "size": 0,
+              "showAnalytics": true,
+              "title": "Palo Alto Firewall Traffic Log",
+              "timeContextFromParameter": "TimeRange",
+              "showRefreshButton": true,
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "rowLimit": 10000,
+                "filter": true
+              }
+            },
+            "name": "Traffic Log"
+          },
+          {
+            "type": 12,
+            "content": {
+              "version": "NotebookGroup/1.0",
+              "groupType": "editable",
+              "items": []
+            },
+            "name": "group - 3"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "Tab",
+        "comparison": "isEqualTo",
+        "value": "PAN-OS Firewall Logs"
+      },
+      "name": "Group - PAN-OS Firewall Logs"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 9,
+            "content": {
+              "version": "KqlParameterItem/1.0",
+              "parameters": [
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "TimeRange",
+                  "type": 4,
+                  "isRequired": true,
+                  "value": {
+                    "durationMs": 14400000
+                  },
+                  "typeSettings": {
+                    "selectableValues": [
+                      {
+                        "durationMs": 300000
+                      },
+                      {
+                        "durationMs": 900000
+                      },
+                      {
+                        "durationMs": 1800000
+                      },
+                      {
+                        "durationMs": 3600000
+                      },
+                      {
+                        "durationMs": 14400000
+                      },
+                      {
+                        "durationMs": 43200000
+                      },
+                      {
+                        "durationMs": 86400000
+                      },
+                      {
+                        "durationMs": 172800000
+                      },
+                      {
+                        "durationMs": 259200000
+                      },
+                      {
+                        "durationMs": 604800000
+                      },
+                      {
+                        "durationMs": 1209600000
+                      },
+                      {
+                        "durationMs": 2419200000
+                      },
+                      {
+                        "durationMs": 2592000000
+                      },
+                      {
+                        "durationMs": 5184000000
+                      },
+                      {
+                        "durationMs": 7776000000
+                      }
+                    ],
+                    "allowCustom": true
+                  }
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Source_IP",
+                  "label": "Source IP",
+                  "type": 1,
+                  "description": "Choose a source IP.  Partial address permitted.",
+                  "timeContext": {
+                    "durationMs": 900000
+                  },
+                  "timeContextFromParameter": "TimeRange",
+                  "defaultValue": "value::all"
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Destination_IP",
+                  "label": "Destination IP",
+                  "type": 1,
+                  "description": "Choose a destination IP.  Partial address permitted.",
+                  "timeContext": {
+                    "durationMs": 900000
+                  },
+                  "timeContextFromParameter": "TimeRange",
+                  "defaultValue": "value::all"
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Destination_Port",
+                  "label": "Destination Port",
+                  "type": 2,
+                  "isRequired": true,
+                  "multiSelect": true,
+                  "quote": "'",
+                  "delimiter": ",",
+                  "query": "traffic_CL\n| summarize Count = count()/1000 by DestinationPort_d\n| where DestinationPort_d != \"\"\n| order by Count desc, DestinationPort_d asc\n| project Value = DestinationPort_d, Label = strcat(DestinationPort_d, \" - \", Count, \"k\"), Selected = false",
+                  "typeSettings": {
+                    "additionalResourceOptions": [
+                      "value::all"
+                    ],
+                    "showDefault": false
+                  },
+                  "timeContext": {
+                    "durationMs": 1800000
+                  },
+                  "defaultValue": "value::all",
+                  "queryType": 0,
+                  "resourceType": "microsoft.operationalinsights/workspaces"
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Device_Action",
+                  "label": "Device Action",
+                  "type": 2,
+                  "isRequired": true,
+                  "multiSelect": true,
+                  "quote": "'",
+                  "delimiter": ",",
+                  "query": "traffic_CL\n| summarize Count = count()/1000 by Action_s\n| where Action_s != \"\"\n| order by Count desc, Action_s asc\n| top 5 by Count\n| project Value = Action_s, Label = strcat(Action_s, \" - \", Count, \"k\"), Selected = false",
+                  "typeSettings": {
+                    "additionalResourceOptions": [
+                      "value::all"
+                    ],
+                    "showDefault": false
+                  },
+                  "timeContext": {
+                    "durationMs": 86400000
+                  },
+                  "defaultValue": "value::all",
+                  "queryType": 0,
+                  "resourceType": "microsoft.operationalinsights/workspaces"
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Source_User",
+                  "label": "Source User",
+                  "type": 1,
+                  "description": "Choose a specific user.  Partial name permitted.",
+                  "timeContext": {
+                    "durationMs": 3600000
+                  },
+                  "defaultValue": "value::all"
+                }
+              ],
+              "style": "pills",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces"
+            },
+            "name": "parameters - 5"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "<div style=\"font-size: 200%;\">Palo Alto Prisma Access Logs (TRAFFIC)</div>"
+            },
+            "name": "text - 0"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "traffic_CL\n| where LogType_s == \"TRAFFIC\"\n| where TimeGenerated >= ago(24h)\n| summarize count() by bin(TimeGenerated, 10m), Action_s\n| render areachart",
+              "size": 1,
+              "title": "24 hour Prisma Access Traffic ",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "areachart",
+              "chartSettings": {
+                "showLegend": true,
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "allow",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "deny",
+                    "color": "orange"
+                  },
+                  {
+                    "seriesName": "drop",
+                    "color": "purple"
+                  },
+                  {
+                    "seriesName": "reset-both",
+                    "color": "red"
+                  }
+                ]
+              }
+            },
+            "name": "query - 4"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "// Basic Traffic Log from Palo Alto Prisma Access\r\n// Last Updated 12/06/2024 RF\r\ntraffic_CL\r\n| where LogType_s == \"TRAFFIC\"\r\n| where SourceAddress_s contains \"{Source_IP}\" // Specify Source IP\r\n| where DestinationAddress_s contains \"{Destination_IP}\"  // Specify Destination IP\r\n| where \"{Destination_Port:lable}\"==\"All\" or DestinationPort_d in ({Destination_Port})  // Specify Port\r\n| where \"{Device_Action:lable}\"==\"All\" or Action_s in ({Device_Action})  // Specify Action\r\n| where \"{Source_User:lable}\"==\"All\" or SourceUser_s contains \"{Source_User}\"  // Specify Devices\r\n| project TimeGenerated, User = SourceUser_s, App = Application_s, Action = Action_s, Protocol = Protocol_s, Source = SourceAddress_s, Destination = DestinationAddress_s, DestPort = DestinationPort_d, Service = DeviceName_s, Reason = SessionEndReason_s, Category = URLCategory_s, Rule = Rule_s, TotalBytes = Bytes_d",
+              "size": 0,
+              "showAnalytics": true,
+              "title": "Palo Alto Prisma Access Traffic Log",
+              "timeContextFromParameter": "TimeRange",
+              "showRefreshButton": true,
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "rowLimit": 10000,
+                "filter": true
+              }
+            },
+            "name": "Traffic Log"
+          },
+          {
+            "type": 12,
+            "content": {
+              "version": "NotebookGroup/1.0",
+              "groupType": "editable",
+              "items": []
+            },
+            "name": "group - 3"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "Tab",
+        "comparison": "isEqualTo",
+        "value": "Prisma Access Traffic Logs"
+      },
+      "name": "Group - Prisma Access Traffic Logs"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 9,
+            "content": {
+              "version": "KqlParameterItem/1.0",
+              "parameters": [
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "TimeRange",
+                  "type": 4,
+                  "isRequired": true,
+                  "value": {
+                    "durationMs": 14400000
+                  },
+                  "typeSettings": {
+                    "selectableValues": [
+                      {
+                        "durationMs": 300000
+                      },
+                      {
+                        "durationMs": 900000
+                      },
+                      {
+                        "durationMs": 1800000
+                      },
+                      {
+                        "durationMs": 3600000
+                      },
+                      {
+                        "durationMs": 14400000
+                      },
+                      {
+                        "durationMs": 43200000
+                      },
+                      {
+                        "durationMs": 86400000
+                      },
+                      {
+                        "durationMs": 172800000
+                      },
+                      {
+                        "durationMs": 259200000
+                      },
+                      {
+                        "durationMs": 604800000
+                      },
+                      {
+                        "durationMs": 1209600000
+                      },
+                      {
+                        "durationMs": 2419200000
+                      },
+                      {
+                        "durationMs": 2592000000
+                      },
+                      {
+                        "durationMs": 5184000000
+                      },
+                      {
+                        "durationMs": 7776000000
+                      }
+                    ],
+                    "allowCustom": true
+                  }
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Source_IP",
+                  "label": "Source IP",
+                  "type": 1,
+                  "description": "Choose a source IP.  Partial address permitted.",
+                  "timeContext": {
+                    "durationMs": 900000
+                  },
+                  "timeContextFromParameter": "TimeRange",
+                  "defaultValue": "value::all"
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Destination_URL",
+                  "label": "Destination URL",
+                  "type": 1,
+                  "description": "Choose a destination URL.  Partial address permitted.",
+                  "timeContext": {
+                    "durationMs": 0
+                  },
+                  "timeContextFromParameter": "TimeRange",
+                  "defaultValue": "value::all",
+                  "value": ""
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Destination_Port",
+                  "label": "Destination Port",
+                  "type": 2,
+                  "isRequired": true,
+                  "multiSelect": true,
+                  "quote": "'",
+                  "delimiter": ",",
+                  "query": "traffic_CL\n| summarize Count = count()/1000 by DestinationPort_d\n| where DestinationPort_d != \"\"\n| order by Count desc, DestinationPort_d asc\n| project Value = DestinationPort_d, Label = strcat(DestinationPort_d, \" - \", Count, \"k\"), Selected = false",
+                  "typeSettings": {
+                    "additionalResourceOptions": [
+                      "value::all"
+                    ],
+                    "showDefault": false
+                  },
+                  "timeContext": {
+                    "durationMs": 1800000
+                  },
+                  "defaultValue": "value::all",
+                  "queryType": 0,
+                  "resourceType": "microsoft.operationalinsights/workspaces"
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Device_Action",
+                  "label": "Device Action",
+                  "type": 2,
+                  "isRequired": true,
+                  "multiSelect": true,
+                  "quote": "'",
+                  "delimiter": ",",
+                  "query": "traffic_CL\n| summarize Count = count()/1000 by Action_s\n| where Action_s != \"\"\n| order by Count desc, Action_s asc\n| top 5 by Count\n| project Value = Action_s, Label = strcat(Action_s, \" - \", Count, \"k\"), Selected = false",
+                  "typeSettings": {
+                    "additionalResourceOptions": [
+                      "value::all"
+                    ],
+                    "showDefault": false
+                  },
+                  "timeContext": {
+                    "durationMs": 86400000
+                  },
+                  "defaultValue": "value::all",
+                  "queryType": 0,
+                  "resourceType": "microsoft.operationalinsights/workspaces"
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Source_User",
+                  "label": "Source User",
+                  "type": 1,
+                  "description": "Choose a specific user.  Partial name permitted.",
+                  "timeContext": {
+                    "durationMs": 3600000
+                  },
+                  "defaultValue": "value::all"
+                }
+              ],
+              "style": "pills",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces"
+            },
+            "name": "parameters - 5"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "<div style=\"font-size: 200%;\">Palo Alto Prisma Access Logs (URL)</div>"
+            },
+            "name": "text - 0"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "url_CL\n//| where LogType_s == \"TRAFFIC\"\n| where TimeGenerated >= ago(24h)\n| summarize count() by bin(TimeGenerated, 10m), Action_s\n| render areachart",
+              "size": 1,
+              "title": "24 hour Prisma Access Traffic ",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "areachart",
+              "chartSettings": {
+                "showLegend": true,
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "allow",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "deny",
+                    "color": "orange"
+                  },
+                  {
+                    "seriesName": "drop",
+                    "color": "purple"
+                  },
+                  {
+                    "seriesName": "reset-both",
+                    "color": "redDark"
+                  },
+                  {
+                    "seriesName": "alert",
+                    "color": "yellow"
+                  },
+                  {
+                    "seriesName": "block-url",
+                    "color": "orange"
+                  }
+                ]
+              }
+            },
+            "name": "query - 4"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "url_CL\r\n//| where LogType_s == \"TRAFFIC\"\r\n| where SourceAddress_s contains \"{Source_IP}\" // Specify Source IP\r\n| where URL_s has \"{Destination_URL}\"  // Specify Destination URL\r\n| where \"{Destination_Port:lable}\"==\"All\" or DestinationPort_d in ({Destination_Port})  // Specify Port\r\n| where \"{Device_Action:lable}\"==\"All\" or Action_s in ({Device_Action})  // Specify Action\r\n| where \"{Source_User:lable}\"==\"All\" or SourceUser_s contains \"{Source_User}\"  // Specify Devices\r\n| project TimeGenerated, User = SourceUser_s, URL = URL_s, App = Application_s, Action = Action_s, Protocol = Protocol_s, Source = SourceAddress_s, Destination = DestinationAddress_s, DestPort = DestinationPort_d, Service = DeviceName_s, Category = URLCategory_s, Rule = Rule_s",
+              "size": 0,
+              "showAnalytics": true,
+              "title": "Palo Alto Prisma Access URL Log",
+              "timeContextFromParameter": "TimeRange",
+              "showRefreshButton": true,
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "rowLimit": 10000,
+                "filter": true
+              }
+            },
+            "name": "URL Log"
+          },
+          {
+            "type": 12,
+            "content": {
+              "version": "NotebookGroup/1.0",
+              "groupType": "editable",
+              "items": []
+            },
+            "name": "group - 3"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "Tab",
+        "comparison": "isEqualTo",
+        "value": "Prisma Access URL Logs"
+      },
+      "name": "Group - Prisma Access URL Logs"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "<div style=\"font-size: 200%;\">Azure Firewall Traffic Log</div>"
+            },
+            "name": "text - 0"
+          },
+          {
+            "type": 9,
+            "content": {
+              "version": "KqlParameterItem/1.0",
+              "parameters": [
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "TimeRange",
+                  "type": 4,
+                  "isRequired": true,
+                  "value": {
+                    "durationMs": 14400000
+                  },
+                  "typeSettings": {
+                    "selectableValues": [
+                      {
+                        "durationMs": 300000
+                      },
+                      {
+                        "durationMs": 900000
+                      },
+                      {
+                        "durationMs": 1800000
+                      },
+                      {
+                        "durationMs": 3600000
+                      },
+                      {
+                        "durationMs": 14400000
+                      },
+                      {
+                        "durationMs": 43200000
+                      },
+                      {
+                        "durationMs": 86400000
+                      },
+                      {
+                        "durationMs": 172800000
+                      },
+                      {
+                        "durationMs": 259200000
+                      },
+                      {
+                        "durationMs": 604800000
+                      },
+                      {
+                        "durationMs": 1209600000
+                      },
+                      {
+                        "durationMs": 2419200000
+                      },
+                      {
+                        "durationMs": 2592000000
+                      },
+                      {
+                        "durationMs": 5184000000
+                      },
+                      {
+                        "durationMs": 7776000000
+                      }
+                    ],
+                    "allowCustom": true
+                  }
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Source_IP",
+                  "label": "Source IP",
+                  "type": 1,
+                  "timeContext": {
+                    "durationMs": 1800000
+                  }
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Destination_IP",
+                  "label": "Destination IP",
+                  "type": 1,
+                  "timeContext": {
+                    "durationMs": 300000
+                  },
+                  "timeContextFromParameter": "TimeRange",
+                  "value": ""
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Destination_Port",
+                  "label": "Destination Port",
+                  "type": 2,
+                  "isRequired": true,
+                  "multiSelect": true,
+                  "quote": "'",
+                  "delimiter": ",",
+                  "query": "AZFWNetworkRule\n| summarize Count = count()/1000 by DestinationPort\n| where DestinationPort != \"\"\n| order by Count desc, DestinationPort asc\n| project Value = DestinationPort, Label = strcat(DestinationPort, \" - \", Count, \"k\"), Selected = false",
+                  "typeSettings": {
+                    "additionalResourceOptions": [
+                      "value::all"
+                    ],
+                    "showDefault": false
+                  },
+                  "timeContext": {
+                    "durationMs": 1800000
+                  },
+                  "defaultValue": "value::all",
+                  "queryType": 0,
+                  "resourceType": "microsoft.operationalinsights/workspaces",
+                  "value": [
+                    "value::all"
+                  ]
+                },
+                {
+                  "id": "PLACEHOLDER_SUBSCRIPTION_ID",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "Action",
+                  "type": 2,
+                  "isRequired": true,
+                  "multiSelect": true,
+                  "quote": "'",
+                  "delimiter": ",",
+                  "query": "AZFWNetworkRule\n| summarize Count = count()/1000 by Action\n| where Action != \"\"\n| order by Count desc, Action asc\n| top 5 by Count\n| project Value = Action, Label = strcat(Action, \" - \", Count, \"k\"), Selected = false",
+                  "typeSettings": {
+                    "additionalResourceOptions": [
+                      "value::all"
+                    ]
+                  },
+                  "defaultValue": "value::all",
+                  "queryType": 0,
+                  "resourceType": "microsoft.operationalinsights/workspaces",
+                  "value": [
+                    "value::all"
+                  ]
+                }
+              ],
+              "style": "pills",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces"
+            },
+            "name": "parameters - 5"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "AZFWNetworkRule\n| where SourceIp contains \"{Source_IP}\" // Specify Source IP\n| where DestinationIp contains \"{Destination_IP}\"  // Specify Destination IP\n| where \"{Destination_Port:label}\"==\"All\" or DestinationPort in ({Destination_Port})  // Specify Port\n| where \"{Action:label}\"==\"All\" or Action in ({Action})  // Specify Action  \n| summarize count() by bin(TimeGenerated, 5m), Action",
+              "size": 1,
+              "title": "Azure Firewall Traffic Log",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "visualization": "areachart",
+              "chartSettings": {
+                "showLegend": true,
+                "seriesLabelSettings": [
+                  {
+                    "seriesName": "deny",
+                    "color": "red"
+                  },
+                  {
+                    "seriesName": "allow",
+                    "color": "green"
+                  },
+                  {
+                    "seriesName": "drop",
+                    "color": "orangeDark"
+                  },
+                  {
+                    "seriesName": "Deny",
+                    "color": "orange"
+                  },
+                  {
+                    "seriesName": "Allow",
+                    "color": "lightBlue"
+                  }
+                ]
+              }
+            },
+            "name": "query - 4"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "// Basic Traffic Log from Azure Firewalls\n// Last Updated 10/1/2024 RF\nAZFWNetworkRule\n| where SourceIp contains \"{Source_IP}\" // Specify Source IP\n| where DestinationIp contains \"{Destination_IP}\"  // Specify Destination IP\n| where \"{Destination_Port:label}\"==\"All\" or DestinationPort in ({Destination_Port})  // Specify Port\n| where \"{Action:label}\"==\"All\" or Action in ({Action})  // Specify Action  \n| project TimeGenerated, Action, SourceIp, DestinationIp, DestinationPort, Protocol, Policy, Type, Rule\n| order by TimeGenerated desc",
+              "size": 0,
+              "showAnalytics": true,
+              "title": "Traffic Log",
+              "timeContextFromParameter": "TimeRange",
+              "showExportToExcel": true,
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "gridSettings": {
+                "rowLimit": 10000,
+                "filter": true
+              }
+            },
+            "name": "Traffic Log"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "Tab",
+        "comparison": "isEqualTo",
+        "value": "Azure Firewall Traffic"
+      },
+      "name": "Group - Azure Firewall Traffic"
+    }
+  ],
+  "fallbackResourceIds": [
+    "/subscriptions/PLACEHOLDER_SUBSCRIPTION_ID/resourcegroups/18f-useast-infosec-sentinel/providers/microsoft.operationalinsights/workspaces/18f-useast-infosec-sentinel-la"
+  ],
+  "fromTemplateId": "sentinel-UserWorkbook",
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}
