@@ -332,10 +332,10 @@
                     ],
                     "showDefault": false
                   },
-                  "jsonData": "[\r\n    {\"value\":\"/subscriptions/PLACEHOLDER_SUBSCRIPTION_ID/resourcegroups/18f-useast-infosec-sentinel/providers/microsoft.operationalinsights/workspaces/18f-useast-infosec-sentinel-la\", \"Label\":\"18F-USEast-Infosec-Sentinel-LA\"}\r\n]",
+                  "jsonData": "[\r\n    {\"value\":\"/subscriptions/PLACEHOLDER_SUBSCRIPTION_ID/resourcegroups/useast-infosec-sentinel/providers/microsoft.operationalinsights/workspaces/useast-infosec-sentinel-la\", \"Label\":\"USEast-Infosec-Sentinel-LA\"}\r\n]",
                   "defaultValue": "value::all",
                   "value": [
-                    "/subscriptions/PLACEHOLDER_SUBSCRIPTION_ID/resourcegroups/18f-useast-infosec-sentinel/providers/microsoft.operationalinsights/workspaces/18f-useast-infosec-sentinel-la"
+                    "/subscriptions/PLACEHOLDER_SUBSCRIPTION_ID/resourcegroups/useast-infosec-sentinel/providers/microsoft.operationalinsights/workspaces/useast-infosec-sentinel-la"
                   ]
                 },
                 {
@@ -981,7 +981,7 @@
     }
   ],
   "fallbackResourceIds": [
-    "/subscriptions/PLACEHOLDER_SUBSCRIPTION_ID/resourcegroups/18f-useast-infosec-sentinel/providers/microsoft.operationalinsights/workspaces/18f-useast-infosec-sentinel-la"
+    "/subscriptions/PLACEHOLDER_SUBSCRIPTION_ID/resourcegroups/useast-infosec-sentinel/providers/microsoft.operationalinsights/workspaces/useast-infosec-sentinel-la"
   ],
   "fromTemplateId": "sentinel-UserWorkbook",
   "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
