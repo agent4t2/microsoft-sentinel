@@ -1,4 +1,4 @@
-# Microsoft Sentinel Workbooks (Sanitized)
+# Microsoft Sentinel Workbooks
 
 This repository contains a collection of Microsoft Sentinel workbooks in JSON gallery format.  
 All workbooks have been sanitized to remove environment-specific identifiers such as:
