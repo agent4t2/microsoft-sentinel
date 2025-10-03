@@ -20,13 +20,13 @@
     {
       "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
       "apiVersion": "2020-08-01",
-      "name": "[concat(parameters('Workspace'), '/WinSmtp18F')]",
+      "name": "[concat(parameters('Workspace'), '/WinSmtp')]",
       "location": "[parameters('WorkspaceRegion')]",
       "properties": {
         "etag": "*",
-        "displayName": "WinSmtp18F",
+        "displayName": "WinSmtp",
         "category": "Parser",
-        "FunctionAlias": "WinSmtp18F",
+        "FunctionAlias": "WinSmtp",
         "query": "WinSmtp_CL\n| extend RawDataElements = split(RawData, \",\")\n| extend Timestamp = RawDataElements[0], ConnectorID = RawDataElements[1], SessionID = RawDataElements[2], Sequence = RawDataElements[3], LocalEndpoint = RawDataElements[4], RemoteEndpoint = RawDataElements[5], FlowIndicator = RawDataElements[6], StatusMessage = RawDataElements[7]\n| extend EventType = case(ConnectorID has_any(\"Send Connector\"), \"Send\", \"Receive\")\n| extend LocalIP = tostring(split(LocalEndpoint, \":\")[0]), LocalPort = tostring(split(LocalEndpoint, \":\")[1]), RemoteIP = tostring(split(RemoteEndpoint, \":\")[0]), RemotePort = tostring(split(RemoteEndpoint, \":\")[1])\n| extend HostName = extract(@\"(\\w+SMTPRELAY\\d+)\", 1, tostring(ConnectorID))\n| project TimeGenerated, Timestamp, ConnectorID, HostName, EventType, SessionID, Sequence, LocalIP, LocalPort, RemoteIP, RemotePort, FlowIndicator, StatusMessage",
         "version": 1,
         "functionParameters": ""
